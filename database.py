@@ -91,7 +91,7 @@ class DatabaseManager:
         print(f"Registro deletado com sucesso!")
 
     def listar_todos_registros(self):
-        """Lista TODOS os registros sem filtro"""
+        """Lista TODOS os registros sem filtro - COM STATUS DE CONFIRMAÇÃO"""
         conexao = self.connect()
         cursor = conexao.cursor()
 
@@ -106,7 +106,7 @@ class DatabaseManager:
         return resultado
 
     def listar_registros_sessao_atual(self):
-        """Lista apenas registros da sessão atual (com cabeçalho definido)"""
+        """Lista apenas registros da sessão atual (com cabeçalho definido) - COM STATUS DE CONFIRMAÇÃO"""
         if not self.fiscal_atual or not self.data_atual or not self.linha_atual:
             print("❌ Cabeçalho não definido!")
             return []
@@ -115,7 +115,8 @@ class DatabaseManager:
         cursor = conexao.cursor()
 
         sql = """SELECT * FROM saida_carros 
-                 WHERE nome_fiscal = %s AND data_trabalho = %s AND linha = %s"""
+                 WHERE nome_fiscal = %s AND data_trabalho = %s AND linha = %s
+                 ORDER BY horario_saida ASC"""
         valores = (self.fiscal_atual, self.data_atual, self.linha_atual)
 
         cursor.execute(sql, valores)
@@ -127,7 +128,111 @@ class DatabaseManager:
         print(f"Listando registros da sessão atual! Total: {len(resultado)}")
         return resultado
 
-    # ========== NOVAS FUNCIONALIDADES ==========
+    # ========== NOVA FUNCIONALIDADE: CONFIRMAR SAÍDA ==========
+
+    def adicionar_coluna_saida_confirmada(self):
+        """
+        EXECUTE ESTA FUNÇÃO APENAS UMA VEZ para adicionar a nova coluna
+        """
+        try:
+            conexao = self.connect()
+            cursor = conexao.cursor()
+
+            sql = """
+            ALTER TABLE saida_carros 
+            ADD COLUMN saida_confirmada BOOLEAN DEFAULT FALSE
+            """
+
+            cursor.execute(sql)
+            conexao.commit()
+
+            cursor.close()
+            conexao.close()
+
+            print("✅ Coluna 'saida_confirmada' adicionada com sucesso!")
+            return True
+
+        except Exception as e:
+            print(f"❌ Erro ao adicionar coluna: {str(e)}")
+            # Se a coluna já existir, isso é normal
+            if "Duplicate column name" in str(e) or "duplicate column name" in str(e).lower():
+                print("✅ Coluna já existe, continuando...")
+                return True
+            return False
+
+    def confirmar_saida_carro(self, id_carro):
+        """
+        Marca um carro como tendo sua saída confirmada
+        """
+        try:
+            conexao = self.connect()
+            cursor = conexao.cursor()
+
+            sql = """
+            UPDATE saida_carros 
+            SET saida_confirmada = TRUE 
+            WHERE id = %s
+            """
+
+            cursor.execute(sql, (id_carro,))
+            conexao.commit()
+
+            linhas_afetadas = cursor.rowcount
+            cursor.close()
+            conexao.close()
+
+            if linhas_afetadas > 0:
+                print(f"✅ Saída confirmada para carro ID: {id_carro}")
+                return True
+            else:
+                print(f"❌ Carro ID {id_carro} não encontrado")
+                return False
+
+        except Exception as e:
+            print(f"❌ Erro ao confirmar saída: {str(e)}")
+            return False
+
+    def executar_migracao_inicial(self):
+        """
+        Execute esta função UMA VEZ para preparar o banco de dados
+        """
+        print("🔧 Executando migração do banco de dados...")
+
+        # Adicionar a nova coluna
+        resultado = self.adicionar_coluna_saida_confirmada()
+
+        if resultado:
+            print("✅ Migração concluída com sucesso!")
+            print("📝 Agora o sistema pode persistir confirmações de saída!")
+        else:
+            print("❌ Erro na migração!")
+
+        return resultado
+
+    def resetar_todas_confirmacoes(self):
+        """
+        APENAS PARA TESTES: Reseta todas as confirmações
+        """
+        try:
+            conexao = self.connect()
+            cursor = conexao.cursor()
+
+            sql = "UPDATE saida_carros SET saida_confirmada = FALSE"
+
+            cursor.execute(sql)
+            conexao.commit()
+
+            cursor.close()
+            conexao.close()
+
+            print("🔄 Todas as confirmações foram resetadas")
+            return True
+
+        except Exception as e:
+            print(f"❌ Erro ao resetar confirmações: {str(e)}")
+            return False
+
+    # ========== FUNCIONALIDADES EXISTENTES ATUALIZADAS ==========
 
     def finalizar_dia(self):
         """
@@ -177,7 +282,7 @@ class DatabaseManager:
 
     def consultar_por_data(self, data_consulta):
         """
-        Consulta todos os registros de uma data específica.
+        Consulta todos os registros de uma data específica - COM STATUS DE CONFIRMAÇÃO.
 
         Args:
             data_consulta (str): Data no formato 'YYYY-MM-DD'
@@ -208,7 +313,7 @@ class DatabaseManager:
 
     def consultar_por_filtros(self, filtros):
         """
-        Consulta registros com múltiplos filtros.
+        Consulta registros com múltiplos filtros - COM STATUS DE CONFIRMAÇÃO.
 
         Args:
             filtros (dict): Dicionário com filtros possíveis:
@@ -414,49 +519,6 @@ class DatabaseManager:
             print(f"❌ Erro ao editar registro: {str(e)}")
             return False
 
-    '''def debug_completo(self):
-        """Função para debugar completamente o banco"""
-        print("🔍 === DEBUG COMPLETO ===")
-
-        try:
-            conexao = self.connect()
-            cursor = conexao.cursor()
-
-            # Teste 1: Verificar se consegue conectar
-            print("✅ Conexão estabelecida")
-
-            # Teste 2: Verificar se a tabela existe
-            cursor.execute("SHOW TABLES")
-            tabelas = cursor.fetchall()
-            print(f"📋 Tabelas no banco: {tabelas}")
-
-            # Teste 3: Verificar estrutura da tabela
-            cursor.execute("DESCRIBE saida_carros")
-            estrutura = cursor.fetchall()
-            print(f"🏗️ Estrutura da tabela: {estrutura}")
-
-            # Teste 4: Contar registros
-            cursor.execute("SELECT COUNT(*) FROM saida_carros")
-            total = cursor.fetchone()[0]
-            print(f"📊 Total de registros: {total}")
-
-            # Teste 5: Pegar alguns registros
-            cursor.execute("SELECT * FROM saida_carros LIMIT 3")
-            alguns = cursor.fetchall()
-            print(f"📝 Primeiros registros: {alguns}")
-
-            # Teste 6: Verificar valores NULL
-            cursor.execute("SELECT COUNT(*) FROM saida_carros WHERE nome_fiscal IS NULL")
-            nulos = cursor.fetchone()[0]
-            print(f"❓ Registros com fiscal NULL: {nulos}")
-
-            cursor.close()
-            conexao.close()
-
-        except Exception as e:
-            print(f"❌ ERRO no debug: {e}")
-            print(f"Tipo do erro: {type(e)}")'''
-
 
 if __name__ == '__main__':
     db = DatabaseManager()
@@ -464,5 +526,9 @@ if __name__ == '__main__':
         conexao = db.connect()
         print("Conexão criada com sucesso!")
         conexao.close()
+
+        # DESCOMENTE A LINHA ABAIXO PARA EXECUTAR A MIGRAÇÃO UMA VEZ:
+        # db.executar_migracao_inicial()
+
     except Exception as e:
         print(f"Erro na conexão: {e}")
