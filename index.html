@@ -399,7 +399,6 @@
         let cronometroInterval = null;
         let carroAtual = null;
         let carrosPendentes = [];
-        let carrosSaidos = []; // NOVA: Lista de carros que já saíram
         let cronometroPausado = false;
         let autoConfirmacaoAtiva = false;
         let autoConfirmacaoInterval = null;
@@ -534,7 +533,8 @@
             console.log('🔄 Cronômetro resetado');
         }
 
-        function confirmarSaidaCarro() {
+        // NOVA FUNÇÃO: Confirmar saída via servidor
+        async function confirmarSaidaCarro() {
             if (!carroAtual) {
                 console.log('❌ Nenhum carro atual para confirmar');
                 return;
@@ -542,60 +542,79 @@
 
             console.log('✅ Confirmando saída do carro:', carroAtual.numero);
 
-            // Parar auto-confirmação se estiver ativa
-            if (autoConfirmacaoInterval) {
-                clearInterval(autoConfirmacaoInterval);
-                autoConfirmacaoInterval = null;
-            }
-            autoConfirmacaoAtiva = false;
-            document.getElementById('autoConfirmacao').style.display = 'none';
+            try {
+                // ENVIAR CONFIRMAÇÃO PARA O SERVIDOR
+                const response = await fetch('/confirmar-saida', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `id=${carroAtual.id}`
+                });
 
-            // Remover visual de atrasado/confirmação
-            const container = document.getElementById('cronometroContainer');
-            container.className = 'cronometro-container';
+                const resultado = await response.json();
 
-            // IMPORTANTE: Adicionar à lista de carros que saíram
-            carrosSaidos.push(carroAtual.id);
-            console.log('📝 Carros que já saíram:', carrosSaidos);
+                if (resultado.status === 'ok') {
+                    console.log('✅ Saída confirmada no servidor para carro ID:', carroAtual.id);
 
-            // Guardar ID do carro que está saindo
-            const carroSaindoId = carroAtual.id;
-
-            // Remover da lista de pendentes
-            carrosPendentes = carrosPendentes.filter(c => c.id !== carroSaindoId);
-            console.log('📝 Carros restantes:', carrosPendentes.length);
-
-            // Feedback visual temporário
-            document.getElementById('cronometroInfo').textContent = 'Carro saiu! Próximo...';
-            document.getElementById('cronometroDisplay').textContent = '✅ OK';
-            document.getElementById('proximoCarroInfo').style.display = 'none';
-
-            // Definir próximo carro imediatamente
-            carroAtual = null; // Limpar primeiro
-
-            if (carrosPendentes.length > 0) {
-                console.log('🔄 Definindo próximo carro...');
-                setTimeout(() => {
-                    atualizarListaCarrosPendentes();
-                    if (carroAtual) {
-                        console.log('🎯 Próximo carro:', carroAtual.numero, carroAtual.horario);
-                        atualizarInfoProximoCarro();
-                        // Forçar atualização do cronômetro
-                        atualizarCronometro();
+                    // Parar auto-confirmação se estiver ativa
+                    if (autoConfirmacaoInterval) {
+                        clearInterval(autoConfirmacaoInterval);
+                        autoConfirmacaoInterval = null;
                     }
-                }, 1500);
-            } else {
-                // Não há mais carros
-                console.log('✅ Todos os carros saíram!');
-                document.getElementById('cronometroInfo').textContent = 'Todos os carros saíram!';
-                document.getElementById('proximoCarroInfo').style.display = 'none';
-                document.getElementById('cronometroDisplay').textContent = '--:--';
-            }
+                    autoConfirmacaoAtiva = false;
+                    document.getElementById('autoConfirmacao').style.display = 'none';
 
-            // Atualizar lista visual (não interfere com cronômetro)
-            setTimeout(() => {
-                carregarCarrosSessao();
-            }, 500);
+                    // Remover visual de atrasado/confirmação
+                    const container = document.getElementById('cronometroContainer');
+                    container.className = 'cronometro-container';
+
+                    // Guardar ID do carro que está saindo
+                    const carroSaindoId = carroAtual.id;
+
+                    // Remover da lista de pendentes
+                    carrosPendentes = carrosPendentes.filter(c => c.id !== carroSaindoId);
+                    console.log('📝 Carros restantes:', carrosPendentes.length);
+
+                    // Feedback visual temporário
+                    document.getElementById('cronometroInfo').textContent = 'Carro saiu! Próximo...';
+                    document.getElementById('cronometroDisplay').textContent = '✅ OK';
+                    document.getElementById('proximoCarroInfo').style.display = 'none';
+
+                    // Definir próximo carro imediatamente
+                    carroAtual = null; // Limpar primeiro
+
+                    if (carrosPendentes.length > 0) {
+                        console.log('🔄 Definindo próximo carro...');
+                        setTimeout(() => {
+                            atualizarListaCarrosPendentes();
+                            if (carroAtual) {
+                                console.log('🎯 Próximo carro:', carroAtual.numero, carroAtual.horario);
+                                atualizarInfoProximoCarro();
+                                // Forçar atualização do cronômetro
+                                atualizarCronometro();
+                            }
+                        }, 1500);
+                    } else {
+                        // Não há mais carros
+                        console.log('✅ Todos os carros saíram!');
+                        document.getElementById('cronometroInfo').textContent = 'Todos os carros saíram!';
+                        document.getElementById('proximoCarroInfo').style.display = 'none';
+                        document.getElementById('cronometroDisplay').textContent = '--:--';
+                    }
+
+                    // Atualizar lista visual (não interfere com cronômetro)
+                    setTimeout(() => {
+                        carregarCarrosSessao();
+                    }, 500);
+
+                } else {
+                    console.log('❌ Erro ao confirmar saída:', resultado.mensagem);
+                    alert('❌ Erro ao confirmar saída: ' + resultado.mensagem);
+                }
+
+            } catch (error) {
+                console.log('❌ Erro de comunicação:', error);
+                alert('❌ Erro de comunicação: ' + error.message);
+            }
         }
 
         function iniciarAutoConfirmacao() {
@@ -787,27 +806,32 @@
             }
         });
 
-        // Função para carregar carros da sessão atual
+        // NOVA FUNÇÃO: Carregar carros da sessão atual (com status de confirmação)
         async function carregarCarrosSessao() {
+            console.log('🔄 INICIANDO carregamento de carros...');
             try {
                 const response = await fetch('/listar');
                 const dados = await response.json();
 
+                console.log('📊 DADOS RECEBIDOS DO SERVIDOR:', dados);
+
                 const listaDiv = document.getElementById('listaCarros');
 
                 if (dados.status === 'ok' && dados.carros.length > 0) {
-                    // FILTRAR carros que já saíram antes de atualizar lista
-                    const carrosDisponiveis = dados.carros.filter(carro => !carrosSaidos.includes(carro.id));
-                    console.log('🚗 Carros disponíveis:', carrosDisponiveis.length, 'de', dados.carros.length);
+                    console.log('✅ Processando', dados.carros.length, 'carros...');
+
+                    // FILTRAR carros que NÃO foram confirmados para usar no cronômetro
+                    const carrosNaoConfirmados = dados.carros.filter(carro => !carro.saida_confirmada);
+                    console.log('🚗 Carros NÃO confirmados:', carrosNaoConfirmados.length);
+                    console.log('✅ Carros JÁ confirmados:', dados.carros.length - carrosNaoConfirmados.length);
 
                     // Só atualizar lista de pendentes se não há carro atual OU se a lista mudou
-                    const carroAtualExiste = carroAtual && carrosDisponiveis.find(c => c.id === carroAtual.id);
+                    const carroAtualExiste = carroAtual && carrosNaoConfirmados.find(c => c.id === carroAtual.id);
 
                     if (!carroAtual || !carroAtualExiste) {
-                        console.log('🔄 Atualizando carros pendentes...');
-                        carrosPendentes = carrosDisponiveis.map(carro => ({
-                            ...carro,
-                            confirmadoSaida: false
+                        console.log('🔄 Atualizando carros pendentes no cronômetro...');
+                        carrosPendentes = carrosNaoConfirmados.map(carro => ({
+                            ...carro
                         }));
                         atualizarListaCarrosPendentes();
                     } else {
@@ -816,8 +840,10 @@
 
                     let html = '<h4>Total: ' + dados.total + ' carros registrados hoje</h4>';
                     dados.carros.forEach(carro => {
-                        const jaSaiu = carrosSaidos.includes(carro.id);
+                        const jaSaiu = carro.saida_confirmada; // Agora vem do servidor
                         const isProximo = carroAtual && carroAtual.id === carro.id;
+
+                        console.log(`🚗 Carro ${carro.numero}: confirmado=${jaSaiu}, próximo=${isProximo}`);
 
                         let classeCarro = 'carro-item';
                         if (jaSaiu) {
@@ -843,6 +869,8 @@
                         `;
                     });
                     listaDiv.innerHTML = html;
+
+                    console.log('✅ Lista de carros atualizada no HTML');
                 } else {
                     listaDiv.innerHTML = '<p>Nenhum carro registrado hoje ainda.</p>';
                     carrosPendentes = [];
@@ -850,8 +878,10 @@
                     document.getElementById('cronometroInfo').textContent = 'Nenhum carro agendado';
                     document.getElementById('proximoCarroInfo').style.display = 'none';
                     document.getElementById('cronometroDisplay').textContent = '--:--';
+                    console.log('❌ Nenhum carro encontrado');
                 }
             } catch (error) {
+                console.error('❌ ERRO ao carregar carros:', error);
                 document.getElementById('listaCarros').innerHTML = '<div class="status erro">❌ Erro ao carregar: ' + error + '</div>';
             }
         }
