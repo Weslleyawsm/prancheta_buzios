@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Prancheta de Carros - Com Cronômetro</title>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2c5aa0; text-align: center; }
+
+        /* Estilos do Cronômetro */
+        .cronometro-container {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cronometro-container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+            50% { transform: translate(-50%, -50%) rotate(180deg); }
+        }
+
+        .cronometro-titulo {
+            font-size: 18px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+            position: relative;
+            z-index: 2;
+        }
+
+        .cronometro-display {
+            font-size: 48px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 2;
+        }
+
+        .cronometro-info {
+            font-size: 16px;
+            opacity: 0.8;
+            margin-top: 10px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .cronometro-proximo {
+            background-color: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 15px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .cronometro.atrasado {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            animation: pulse 1s infinite;
+        }
+
+        .cronometro.zerado {
+            background: linear-gradient(135deg, #00d2d3 0%, #54a0ff 100%);
+        }
+
+        .cronometro.aguardando-confirmacao {
+            background: linear-gradient(135deg, #ffa502 0%, #ff6348 100%);
+            animation: pulse 0.8s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        .auto-confirmacao {
+            background-color: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            position: relative;
+            z-index: 2;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+
+        .auto-confirmacao h4 {
+            margin: 0 0 10px 0;
+            color: #fff;
+            font-size: 18px;
+        }
+
+        .countdown-auto {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffeb3b;
+            margin: 10px 0;
+        }
+
+        .controls-cronometro {
+            text-align: center;
+            margin-top: 15px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .controls-cronometro button {
+            margin: 0 5px;
+            padding: 8px 15px;
+            font-size: 14px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-reset { background-color: #ffc107; color: #212529; }
+        .btn-reset:hover { background-color: #e0a800; transform: translateY(-2px); }
+
+        .btn-pausar { background-color: #dc3545; color: white; }
+        .btn-pausar:hover { background-color: #c82333; transform: translateY(-2px); }
+
+        .btn-iniciar { background-color: #28a745; color: white; }
+        .btn-iniciar:hover { background-color: #1e7e34; transform: translateY(-2px); }
+
+        .btn-confirmar { background-color: #007bff; color: white; padding: 12px 20px; font-size: 16px; }
+        .btn-confirmar:hover { background-color: #0056b3; transform: translateY(-2px); }
+
+        .secao { margin: 20px 0; padding: 15px; border: 2px solid #ddd; border-radius: 8px; }
+        .secao h3 { margin-top: 0; color: #333; }
+        input, button, select { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background-color: #2c5aa0; color: white; cursor: pointer; padding: 10px 20px; }
+        button:hover { background-color: #1e3d6f; }
+        button.finalizar { background-color: #28a745; }
+        button.finalizar:hover { background-color: #1e7e34; }
+        button.consultar { background-color: #17a2b8; }
+        button.consultar:hover { background-color: #117a8b; }
+        button.estatisticas { background-color: #ffc107; color: #212529; }
+        button.estatisticas:hover { background-color: #e0a800; }
+        button.editar { background-color: #fd7e14; font-size: 12px; padding: 5px 10px; }
+        button.editar:hover { background-color: #e8590c; }
+        button.remover { background-color: #dc3545; font-size: 12px; padding: 5px 10px; }
+        button.remover:hover { background-color: #c82333; }
+        .lista-carros { background-color: #f9f9f9; }
+        .carro-item { padding: 8px; margin: 5px 0; background: white; border-radius: 4px; border-left: 4px solid #2c5aa0; }
+        .carro-item.editando { border-left-color: #fd7e14; background-color: #fff3cd; }
+        .carro-item.proximo-carro {
+            border-left-color: #ff6b6b;
+            background-color: #fff5f5;
+            font-weight: bold;
+            box-shadow: 0 2px 8px rgba(255,107,107,0.3);
+        }
+        .carro-item.proximo-carro::before {
+            content: '⏰ PRÓXIMO → ';
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        .carro-item.carro-saiu {
+            border-left-color: #28a745;
+            background-color: #f8fff8;
+            opacity: 0.7;
+        }
+        .carro-item.carro-saiu::before {
+            content: '✅ SAIU → ';
+            color: #28a745;
+            font-weight: bold;
+        }
+        .carro-item.proximo-carro::before {
+            content: '⏰ PRÓXIMO → ';
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .sucesso { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .erro { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .filtros { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+        .sessao-info { background-color: #e7f3ff; padding: 10px; border-radius: 5px; margin: 10px 0; }
+        .historico-section { background-color: #f8f9fa; }
+        .estatisticas-section { background-color: #fff3cd; }
+        .tabs { display: flex; margin-bottom: 15px; }
+        .tab { padding: 10px 20px; background-color: #e9ecef; border: 1px solid #ddd; cursor: pointer; }
+        .tab.active { background-color: #2c5aa0; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .resultado-consulta { max-height: 400px; overflow-y: auto; }
+        .estatistica-item { background: white; padding: 10px; margin: 5px 0; border-radius: 4px; border-left: 4px solid #ffc107; }
+
+        /* Estilos para o modal de edição */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
+        .modal-content { background-color: white; margin: 5% auto; padding: 20px; border-radius: 10px; width: 500px; max-width: 90%; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h3 { margin: 0; color: #fd7e14; }
+        .fechar-modal { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .fechar-modal:hover { color: #000; }
+        .form-editar { display: grid; gap: 10px; }
+        .form-editar label { font-weight: bold; }
+        .form-editar input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .botoes-modal { display: flex; gap: 10px; margin-top: 20px; }
+        .botoes-modal button { flex: 1; }
+
+        /* Estilos para formulário inline de edição */
+        .edicao-inline { background-color: #fff3cd; padding: 10px; border-radius: 4px; margin-top: 10px; }
+        .edicao-inline input { margin: 2px; padding: 5px; font-size: 12px; }
+        .edicao-inline .botoes-edicao { margin-top: 5px; }
+        .edicao-inline .botoes-edicao button { padding: 5px 10px; font-size: 12px; margin: 2px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚌 Prancheta de Carros</h1>
+
+        <!-- Cronômetro do Próximo Carro -->
+        <div class="cronometro-container" id="cronometroContainer">
+            <div class="cronometro-titulo">⏰ Cronômetro do Próximo Carro</div>
+            <div class="cronometro-display" id="cronometroDisplay">--:--</div>
+            <div class="cronometro-info" id="cronometroInfo">Aguardando carros...</div>
+
+            <div class="cronometro-proximo" id="proximoCarroInfo" style="display: none;">
+                <strong>🚗 Carro:</strong> <span id="proximoCarroNumero">--</span> |
+                <strong>👨‍💼 Motorista:</strong> <span id="proximoCarroMotorista">--</span> |
+                <strong>🕐 Saída:</strong> <span id="proximoCarroHorario">--:--</span>
+            </div>
+
+            <!-- Seção de Auto-confirmação (aparece quando tempo esgota) -->
+            <div class="auto-confirmacao" id="autoConfirmacao" style="display: none;">
+                <h4>🚨 TEMPO ESGOTADO!</h4>
+                <p>Carro deveria ter saído. Confirmação automática em:</p>
+                <div class="countdown-auto" id="countdownAuto">30</div>
+                <button onclick="confirmarSaidaCarro()" class="btn-confirmar">✅ Confirmar Saída Agora</button>
+            </div>
+
+            <div class="controls-cronometro">
+                <button onclick="pausarCronometro()" class="btn-pausar" id="btnPausar">⏸️ Pausar</button>
+                <button onclick="iniciarCronometro()" class="btn-iniciar" id="btnIniciar" style="display: none;">▶️ Continuar</button>
+                <button onclick="resetarCronometro()" class="btn-reset">🔄 Resetar</button>
+                <button onclick="confirmarSaidaCarro()" class="btn-iniciar" id="btnConfirmarSaida">✅ Confirmar Saída</button>
+            </div>
+        </div>
+
+        <!-- Info da Sessão Atual -->
+        <div id="sessaoAtual" class="sessao-info" style="display: none;">
+            <strong>📋 Sessão Atual:</strong> <span id="infoSessao"></span>
+            <button onclick="verificarSessao()" style="float: right; padding: 5px 10px; font-size: 12px;">🔄</button>
+        </div>
+
+        <!-- Seção do Cabeçalho -->
+        <div class="secao">
+            <h3>📋 1. Definir Cabeçalho da Prancheta</h3>
+            <form id="formCabecalho">
+                <input type="text" id="fiscal" name="fiscal" placeholder="Nome do Fiscal" required>
+                <input type="date" id="data" name="data" required>
+                <input type="text" id="linha" name="linha" placeholder="Linha (ex: Centro-Rodoviária)" required>
+                <button type="submit">Definir Cabeçalho</button>
+            </form>
+            <div id="statusCabecalho"></div>
+        </div>
+
+        <!-- Seção Adicionar Carro -->
+        <div class="secao">
+            <h3>🚗 2. Adicionar Saída de Carro</h3>
+            <form id="formCarro">
+                <input type="text" id="numero" name="numero" placeholder="Número do Carro" required>
+                <input type="text" id="motorista" name="motorista" placeholder="Nome do Motorista" required>
+                <input type="time" id="horario" name="horario" required>
+                <button type="submit">Adicionar Carro</button>
+            </form>
+            <div id="statusCarro"></div>
+        </div>
+
+        <!-- Lista de Carros da Sessão Atual -->
+        <div class="secao lista-carros">
+            <h3>📝 3. Carros do Dia Atual</h3>
+            <button onclick="carregarCarrosSessao()">🔄 Atualizar Lista</button>
+            <button onclick="finalizarDia()" class="finalizar">🏁 Finalizar Dia</button>
+            <div id="listaCarros">Clique em "Atualizar Lista" para ver os carros...</div>
+        </div>
+
+        <!-- Seção de Histórico e Consultas -->
+        <div class="secao historico-section">
+            <h3>🔍 4. Consultar Histórico</h3>
+
+            <div class="tabs">
+                <div class="tab active" onclick="abrirTab('consulta-simples')">📅 Por Data</div>
+                <div class="tab" onclick="abrirTab('consulta-avancada')">🔎 Filtros Avançados</div>
+                <div class="tab" onclick="abrirTab('estatisticas')">📊 Estatísticas</div>
+            </div>
+
+            <!-- Consulta por Data Específica -->
+            <div id="consulta-simples" class="tab-content active">
+                <h4>Consultar por Data Específica</h4>
+                <form id="formConsultaSimples">
+                    <input type="date" id="dataConsulta" name="data_especifica" required>
+                    <button type="submit" class="consultar">Buscar</button>
+                </form>
+                <div id="statusConsultaSimples"></div>
+                <div id="resultadoConsultaSimples" class="resultado-consulta"></div>
+            </div>
+
+            <!-- Consulta Avançada -->
+            <div id="consulta-avancada" class="tab-content">
+                <h4>Filtros Avançados</h4>
+                <form id="formConsultaAvancada">
+                    <div class="filtros">
+                        <div>
+                            <label>Período:</label><br>
+                            <input type="date" id="dataInicio" name="data_inicio" placeholder="Data Início">
+                            <input type="date" id="dataFim" name="data_fim" placeholder="Data Fim">
+                        </div>
+                        <div>
+                            <label>Outros Filtros:</label><br>
+                            <input type="text" id="filtroFiscal" name="fiscal" placeholder="Nome do Fiscal">
+                            <input type="text" id="filtroLinha" name="linha" placeholder="Linha">
+                        </div>
+                        <div>
+                            <input type="text" id="filtroNumero" name="numero_carro" placeholder="Número do Carro">
+                            <input type="text" id="filtroMotorista" name="nome_motorista" placeholder="Nome do Motorista">
+                        </div>
+                    </div>
+                    <button type="submit" class="consultar">🔍 Buscar com Filtros</button>
+                    <button type="button" onclick="limparFiltros()">🗑️ Limpar</button>
+                </form>
+                <div id="statusConsultaAvancada"></div>
+                <div id="resultadoConsultaAvancada" class="resultado-consulta"></div>
+            </div>
+
+            <!-- Estatísticas -->
+            <div id="estatisticas" class="tab-content">
+                <h4>Estatísticas por Período</h4>
+                <form id="formEstatisticas">
+                    <label>Período para Estatísticas:</label><br>
+                    <input type="date" id="estatDataInicio" name="data_inicio" required>
+                    <input type="date" id="estatDataFim" name="data_fim" required>
+                    <button type="submit" class="estatisticas">📊 Gerar Estatísticas</button>
+                </form>
+                <div id="statusEstatisticas"></div>
+                <div id="resultadoEstatisticas"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Edição -->
+    <div id="modalEdicao" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>✏️ Editar Registro</h3>
+                <span class="fechar-modal" onclick="fecharModalEdicao()">&times;</span>
+            </div>
+            <form id="formEdicao" class="form-editar">
+                <input type="hidden" id="editId" name="id">
+
+                <label for="editFiscal">Nome do Fiscal:</label>
+                <input type="text" id="editFiscal" name="nome_fiscal" required>
+
+                <label for="editData">Data:</label>
+                <input type="date" id="editData" name="data_trabalho" required>
+
+                <label for="editLinha">Linha:</label>
+                <input type="text" id="editLinha" name="linha" required>
+
+                <label for="editNumero">Número do Carro:</label>
+                <input type="text" id="editNumero" name="numero_carro" required>
+
+                <label for="editMotorista">Nome do Motorista:</label>
+                <input type="text" id="editMotorista" name="nome_motorista" required>
+
+                <label for="editHorario">Horário de Saída:</label>
+                <input type="time" id="editHorario" name="horario_saida" required>
+
+                <div class="botoes-modal">
+                    <button type="button" onclick="fecharModalEdicao()">❌ Cancelar</button>
+                    <button type="submit" class="editar">✅ Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ========== VARIÁVEIS DO CRONÔMETRO ==========
+        let cronometroAtivo = false;
+        let cronometroInterval = null;
+        let carroAtual = null;
+        let carrosPendentes = [];
+        let carrosSaidos = []; // NOVA: Lista de carros que já saíram
+        let cronometroPausado = false;
+        let autoConfirmacaoAtiva = false;
+        let autoConfirmacaoInterval = null;
+        let tempoAutoConfirmacao = 30; // 30 segundos para auto-confirmação
+        let TIMEOUT_CONFIRMACAO = 30; // Pode ser alterado se necessário
+
+        // Definir data atual como padrão
+        document.getElementById('data').valueAsDate = new Date();
+        document.getElementById('dataConsulta').valueAsDate = new Date();
+
+        // Verificar sessão atual ao carregar a página
+        window.onload = function() {
+            verificarSessao();
+            carregarCarrosSessao();
+            inicializarCronometro();
+        };
+
+        // ========== FUNÇÕES DO CRONÔMETRO HÍBRIDO ==========
+
+        function inicializarCronometro() {
+            console.log('🔧 Inicializando cronômetro...');
+            if (!cronometroAtivo) {
+                iniciarCronometro();
+            }
+        }
+
+        function atualizarListaCarrosPendentes() {
+            console.log('🔄 Atualizando lista de carros pendentes...');
+
+            if (!carrosPendentes || carrosPendentes.length === 0) {
+                carroAtual = null;
+                document.getElementById('cronometroInfo').textContent = 'Nenhum carro agendado';
+                document.getElementById('proximoCarroInfo').style.display = 'none';
+                document.getElementById('cronometroDisplay').textContent = '--:--';
+                console.log('❌ Nenhum carro na lista');
+                return;
+            }
+
+            const agora = new Date();
+
+            // Ordenar carros por horário de saída (mais próximo primeiro)
+            carrosPendentes.sort((a, b) => {
+                const horaA = new Date();
+                const [horaAH, horaAM] = a.horario.split(':');
+                horaA.setHours(horaAH, horaAM, 0, 0);
+
+                const horaB = new Date();
+                const [horaBH, horaBM] = b.horario.split(':');
+                horaB.setHours(horaBH, horaBM, 0, 0);
+
+                return horaA - horaB;
+            });
+
+            // Definir próximo carro
+            const novoCarroAtual = carrosPendentes[0];
+
+            if (novoCarroAtual) {
+                // Só atualizar se realmente mudou
+                if (!carroAtual || carroAtual.id !== novoCarroAtual.id) {
+                    carroAtual = novoCarroAtual;
+                    console.log('🎯 Novo carro definido:', carroAtual);
+                    atualizarInfoProximoCarro();
+
+                    // Resetar estados do cronômetro
+                    if (autoConfirmacaoInterval) {
+                        clearInterval(autoConfirmacaoInterval);
+                    }
+                    autoConfirmacaoAtiva = false;
+                    document.getElementById('autoConfirmacao').style.display = 'none';
+
+                    // Resetar visual
+                    const container = document.getElementById('cronometroContainer');
+                    container.className = 'cronometro-container';
+                }
+            } else {
+                carroAtual = null;
+                document.getElementById('cronometroInfo').textContent = 'Todos os carros saíram!';
+                document.getElementById('proximoCarroInfo').style.display = 'none';
+                console.log('✅ Todos os carros saíram');
+            }
+        }
+
+        function atualizarInfoProximoCarro() {
+            if (!carroAtual) return;
+
+            document.getElementById('proximoCarroNumero').textContent = carroAtual.numero;
+            document.getElementById('proximoCarroMotorista').textContent = carroAtual.motorista;
+            document.getElementById('proximoCarroHorario').textContent = carroAtual.horario;
+            document.getElementById('proximoCarroInfo').style.display = 'block';
+        }
+
+        function iniciarCronometro() {
+            if (cronometroInterval) {
+                clearInterval(cronometroInterval);
+            }
+
+            cronometroAtivo = true;
+            cronometroPausado = false;
+            document.getElementById('btnPausar').style.display = 'inline-block';
+            document.getElementById('btnIniciar').style.display = 'none';
+
+            cronometroInterval = setInterval(atualizarCronometro, 1000);
+            atualizarCronometro(); // Atualizar imediatamente
+            console.log('▶️ Cronômetro iniciado');
+        }
+
+        function pausarCronometro() {
+            cronometroPausado = true;
+            cronometroAtivo = false;
+            if (cronometroInterval) {
+                clearInterval(cronometroInterval);
+            }
+            document.getElementById('btnPausar').style.display = 'none';
+            document.getElementById('btnIniciar').style.display = 'inline-block';
+            console.log('⏸️ Cronômetro pausado');
+        }
+
+        function resetarCronometro() {
+            if (cronometroInterval) {
+                clearInterval(cronometroInterval);
+            }
+            if (autoConfirmacaoInterval) {
+                clearInterval(autoConfirmacaoInterval);
+            }
+            cronometroAtivo = false;
+            cronometroPausado = false;
+            autoConfirmacaoAtiva = false;
+            document.getElementById('autoConfirmacao').style.display = 'none';
+
+            atualizarListaCarrosPendentes();
+            iniciarCronometro();
+            console.log('🔄 Cronômetro resetado');
+        }
+
+        function confirmarSaidaCarro() {
+            if (!carroAtual) {
+                console.log('❌ Nenhum carro atual para confirmar');
+                return;
+            }
+
+            console.log('✅ Confirmando saída do carro:', carroAtual.numero);
+
+            // Parar auto-confirmação se estiver ativa
+            if (autoConfirmacaoInterval) {
+                clearInterval(autoConfirmacaoInterval);
+                autoConfirmacaoInterval = null;
+            }
+            autoConfirmacaoAtiva = false;
+            document.getElementById('autoConfirmacao').style.display = 'none';
+
+            // Remover visual de atrasado/confirmação
+            const container = document.getElementById('cronometroContainer');
+            container.className = 'cronometro-container';
+
+            // IMPORTANTE: Adicionar à lista de carros que saíram
+            carrosSaidos.push(carroAtual.id);
+            console.log('📝 Carros que já saíram:', carrosSaidos);
+
+            // Guardar ID do carro que está saindo
+            const carroSaindoId = carroAtual.id;
+
+            // Remover da lista de pendentes
+            carrosPendentes = carrosPendentes.filter(c => c.id !== carroSaindoId);
+            console.log('📝 Carros restantes:', carrosPendentes.length);
+
+            // Feedback visual temporário
+            document.getElementById('cronometroInfo').textContent = 'Carro saiu! Próximo...';
+            document.getElementById('cronometroDisplay').textContent = '✅ OK';
+            document.getElementById('proximoCarroInfo').style.display = 'none';
+
+            // Definir próximo carro imediatamente
+            carroAtual = null; // Limpar primeiro
+
+            if (carrosPendentes.length > 0) {
+                console.log('🔄 Definindo próximo carro...');
+                setTimeout(() => {
+                    atualizarListaCarrosPendentes();
+                    if (carroAtual) {
+                        console.log('🎯 Próximo carro:', carroAtual.numero, carroAtual.horario);
+                        atualizarInfoProximoCarro();
+                        // Forçar atualização do cronômetro
+                        atualizarCronometro();
+                    }
+                }, 1500);
+            } else {
+                // Não há mais carros
+                console.log('✅ Todos os carros saíram!');
+                document.getElementById('cronometroInfo').textContent = 'Todos os carros saíram!';
+                document.getElementById('proximoCarroInfo').style.display = 'none';
+                document.getElementById('cronometroDisplay').textContent = '--:--';
+            }
+
+            // Atualizar lista visual (não interfere com cronômetro)
+            setTimeout(() => {
+                carregarCarrosSessao();
+            }, 500);
+        }
+
+        function iniciarAutoConfirmacao() {
+            if (autoConfirmacaoAtiva) return; // Já está ativa
+
+            console.log('🚨 Iniciando auto-confirmação...');
+            autoConfirmacaoAtiva = true;
+            tempoAutoConfirmacao = TIMEOUT_CONFIRMACAO;
+
+            document.getElementById('autoConfirmacao').style.display = 'block';
+            document.getElementById('countdownAuto').textContent = tempoAutoConfirmacao;
+
+            // Mudar visual do cronômetro
+            const container = document.getElementById('cronometroContainer');
+            container.className = 'cronometro-container cronometro aguardando-confirmacao';
+
+            autoConfirmacaoInterval = setInterval(() => {
+                tempoAutoConfirmacao--;
+                document.getElementById('countdownAuto').textContent = tempoAutoConfirmacao;
+                console.log('⏰ Auto-confirmação countdown:', tempoAutoConfirmacao);
+
+                if (tempoAutoConfirmacao <= 0) {
+                    // Auto-confirmação automática!
+                    console.log('🤖 EXECUTANDO AUTO-CONFIRMAÇÃO AUTOMÁTICA!');
+                    clearInterval(autoConfirmacaoInterval);
+                    autoConfirmacaoInterval = null;
+                    autoConfirmacaoAtiva = false;
+                    document.getElementById('autoConfirmacao').style.display = 'none';
+
+                    // Chamar confirmação de saída
+                    confirmarSaidaCarro();
+                }
+            }, 1000);
+
+            console.log('⏰ Auto-confirmação iniciada - 30 segundos');
+        }
+
+        function atualizarCronometro() {
+            if (!carroAtual || cronometroPausado) {
+                document.getElementById('cronometroDisplay').textContent = '--:--';
+                return;
+            }
+
+            const agora = new Date();
+            const horarioSaida = new Date();
+            const [hora, minuto] = carroAtual.horario.split(':');
+            horarioSaida.setHours(hora, minuto, 0, 0);
+
+            const diferenca = horarioSaida.getTime() - agora.getTime();
+            const container = document.getElementById('cronometroContainer');
+
+            if (diferenca <= 0) {
+                // Horário passou - mostrar como atrasado
+                const diferencaAbs = Math.abs(diferenca);
+                const minutosAtraso = Math.floor(diferencaAbs / 60000);
+                const segundosAtraso = Math.floor((diferencaAbs % 60000) / 1000);
+
+                document.getElementById('cronometroDisplay').textContent =
+                    `+${minutosAtraso.toString().padStart(2, '0')}:${segundosAtraso.toString().padStart(2, '0')}`;
+                document.getElementById('cronometroInfo').textContent = 'TEMPO ESGOTADO!';
+
+                container.className = 'cronometro-container cronometro atrasado';
+
+                // Iniciar auto-confirmação se ainda não iniciou E se passou mais de 5 segundos
+                if (!autoConfirmacaoAtiva && diferencaAbs > 5000) {
+                    console.log('🚨 Iniciando auto-confirmação - tempo esgotado há', Math.floor(diferencaAbs/1000), 'segundos');
+                    iniciarAutoConfirmacao();
+                }
+
+            } else if (diferenca <= 60000) {
+                // Último minuto - mostrar segundos
+                const segundos = Math.floor(diferenca / 1000);
+                document.getElementById('cronometroDisplay').textContent =
+                    `00:${segundos.toString().padStart(2, '0')}`;
+                document.getElementById('cronometroInfo').textContent = 'ÚLTIMOS SEGUNDOS!';
+
+                container.className = 'cronometro-container cronometro zerado';
+            } else {
+                // Tempo normal
+                const minutos = Math.floor(diferenca / 60000);
+                const segundos = Math.floor((diferenca % 60000) / 1000);
+
+                document.getElementById('cronometroDisplay').textContent =
+                    `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
+                document.getElementById('cronometroInfo').textContent = 'Tempo restante para saída';
+
+                container.className = 'cronometro-container';
+            }
+        }
+
+        // ========== FUNÇÕES EXISTENTES (adaptadas para cronômetro) ==========
+
+        // Função para verificar sessão atual
+        async function verificarSessao() {
+            try {
+                const response = await fetch('/sessao-atual');
+                const dados = await response.json();
+
+                const sessaoDiv = document.getElementById('sessaoAtual');
+                const infoSpan = document.getElementById('infoSessao');
+
+                if (dados.status === 'ok' && dados.sessao) {
+                    sessaoDiv.style.display = 'block';
+                    infoSpan.innerHTML = `${dados.sessao.fiscal} | ${dados.sessao.data} | ${dados.sessao.linha} | ${dados.sessao.total_carros} carros`;
+                } else {
+                    sessaoDiv.style.display = 'none';
+                }
+            } catch (error) {
+                console.log('Erro ao verificar sessão:', error);
+            }
+        }
+
+        // Função para abrir tabs
+        function abrirTab(tabId) {
+            // Esconder todas as tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Mostrar tab selecionada
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Função para enviar cabeçalho
+        document.getElementById('formCabecalho').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const dados = new URLSearchParams(formData);
+
+            try {
+                const response = await fetch('/cabecalho', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: dados
+                });
+
+                const resultado = await response.json();
+
+                const statusDiv = document.getElementById('statusCabecalho');
+                if (resultado.status === 'ok') {
+                    statusDiv.innerHTML = '<div class="status sucesso">✅ ' + resultado.mensagem + '</div>';
+                    verificarSessao(); // Atualizar info da sessão
+                } else {
+                    statusDiv.innerHTML = '<div class="status erro">❌ ' + resultado.mensagem + '</div>';
+                }
+            } catch (error) {
+                document.getElementById('statusCabecalho').innerHTML = '<div class="status erro">❌ Erro: ' + error + '</div>';
+            }
+        });
+
+        // Função para adicionar carro
+        document.getElementById('formCarro').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const dados = new URLSearchParams(formData);
+
+            try {
+                const response = await fetch('/adicionar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: dados
+                });
+
+                const resultado = await response.json();
+
+                const statusDiv = document.getElementById('statusCarro');
+                if (resultado.status === 'ok') {
+                    statusDiv.innerHTML = '<div class="status sucesso">✅ ' + resultado.mensagem + '</div>';
+                    // Limpar formulário e atualizar lista
+                    e.target.reset();
+                    carregarCarrosSessao();
+                    verificarSessao(); // Atualizar contador
+
+                    // Atualizar cronômetro com novo carro
+                    setTimeout(() => {
+                        atualizarListaCarrosPendentes();
+                    }, 500);
+                } else {
+                    statusDiv.innerHTML = '<div class="status erro">❌ ' + resultado.mensagem + '</div>';
+                }
+            } catch (error) {
+                document.getElementById('statusCarro').innerHTML = '<div class="status erro">❌ Erro: ' + error + '</div>';
+            }
+        });
+
+        // Função para carregar carros da sessão atual
+        async function carregarCarrosSessao() {
+            try {
+                const response = await fetch('/listar');
+                const dados = await response.json();
+
+                const listaDiv = document.getElementById('listaCarros');
+
+                if (dados.status === 'ok' && dados.carros.length > 0) {
+                    // FILTRAR carros que já saíram antes de atualizar lista
+                    const carrosDisponiveis = dados.carros.filter(carro => !carrosSaidos.includes(carro.id));
+                    console.log('🚗 Carros disponíveis:', carrosDisponiveis.length, 'de', dados.carros.length);
+
+                    // Só atualizar lista de pendentes se não há carro atual OU se a lista mudou
+                    const carroAtualExiste = carroAtual && carrosDisponiveis.find(c => c.id === carroAtual.id);
+
+                    if (!carroAtual || !carroAtualExiste) {
+                        console.log('🔄 Atualizando carros pendentes...');
+                        carrosPendentes = carrosDisponiveis.map(carro => ({
+                            ...carro,
+                            confirmadoSaida: false
+                        }));
+                        atualizarListaCarrosPendentes();
+                    } else {
+                        console.log('✅ Carro atual ainda válido, mantendo cronômetro');
+                    }
+
+                    let html = '<h4>Total: ' + dados.total + ' carros registrados hoje</h4>';
+                    dados.carros.forEach(carro => {
+                        const jaSaiu = carrosSaidos.includes(carro.id);
+                        const isProximo = carroAtual && carroAtual.id === carro.id;
+
+                        let classeCarro = 'carro-item';
+                        if (jaSaiu) {
+                            classeCarro += ' carro-saiu';
+                        } else if (isProximo) {
+                            classeCarro += ' proximo-carro';
+                        }
+
+                        const statusTexto = jaSaiu ? ' ✅ SAIU' : '';
+
+                        html += `
+                            <div class="${classeCarro}" id="carro-${carro.id}">
+                                <strong>Carro ${carro.numero}</strong> - ${carro.motorista}
+                                - Saída: ${carro.horario}${statusTexto}
+                                <small>(${carro.fiscal} - ${carro.data} - ${carro.linha})</small>
+                                <div style="float: right;">
+                                    ${!jaSaiu ? `
+                                        <button onclick="abrirModalEdicao(${carro.id}, '${carro.fiscal}', '${carro.data}', '${carro.linha}', '${carro.numero}', '${carro.motorista}', '${carro.horario}')" class="editar">✏️ Editar</button>
+                                        <button onclick="removerCarro(${carro.id})" class="remover">🗑️ Remover</button>
+                                    ` : '<span style="color: green;">✅ Confirmado</span>'}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    listaDiv.innerHTML = html;
+                } else {
+                    listaDiv.innerHTML = '<p>Nenhum carro registrado hoje ainda.</p>';
+                    carrosPendentes = [];
+                    carroAtual = null;
+                    document.getElementById('cronometroInfo').textContent = 'Nenhum carro agendado';
+                    document.getElementById('proximoCarroInfo').style.display = 'none';
+                    document.getElementById('cronometroDisplay').textContent = '--:--';
+                }
+            } catch (error) {
+                document.getElementById('listaCarros').innerHTML = '<div class="status erro">❌ Erro ao carregar: ' + error + '</div>';
+            }
+        }
+
+        // ========== FUNÇÕES DE EDIÇÃO ==========
+
+        // Abrir modal de edição
+        function abrirModalEdicao(id, fiscal, data, linha, numero, motorista, horario) {
+            document.getElementById('editId').value = id;
+            document.getElementById('editFiscal').value = fiscal;
+            document.getElementById('editData').value = data;
+            document.getElementById('editLinha').value = linha;
+            document.getElementById('editNumero').value = numero;
+            document.getElementById('editMotorista').value = motorista;
+            document.getElementById('editHorario').value = horario;
+
+            document.getElementById('modalEdicao').style.display = 'block';
+        }
+
+        // Fechar modal de edição
+        function fecharModalEdicao() {
+            document.getElementById('modalEdicao').style.display = 'none';
+        }
+
+        // Processar edição
+        document.getElementById('formEdicao').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const dados = new URLSearchParams(formData);
+
+            try {
+                const response = await fetch('/editar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: dados
+                });
+
+                const resultado = await response.json();
+
+                if (resultado.status === 'ok') {
+                    fecharModalEdicao();
+                    const listaDiv = document.getElementById('listaCarros');
+                    listaDiv.innerHTML = '<div class="status sucesso">✅ ' + resultado.mensagem + '</div>' + listaDiv.innerHTML;
+
+                    setTimeout(() => {
+                        carregarCarrosSessao();
+                        verificarSessao();
+                        // Atualizar cronômetro após edição
+                        atualizarListaCarrosPendentes();
+                    }, 1000);
+                } else {
+                    alert('❌ ' + resultado.mensagem);
+                }
+            } catch (error) {
+                alert('❌ Erro ao editar: ' + error.message);
+            }
+        });
+
+        // Fechar modal quando clicar fora dele
+        window.onclick = function(event) {
+            const modal = document.getElementById('modalEdicao');
+            if (event.target === modal) {
+                fecharModalEdicao();
+            }
+        }
+
+        // ========== FUNÇÕES EXISTENTES (mantidas) ==========
+
+        // Função para finalizar dia
+        async function finalizarDia() {
+            if (!confirm('🏁 Tem certeza que deseja finalizar o dia? Isso irá "zerar" a prancheta para o próximo dia.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/finalizar-dia', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: ''
+                });
+
+                const resultado = await response.json();
+
+                if (resultado.status === 'ok') {
+                    alert('✅ ' + resultado.mensagem);
+                    verificarSessao(); // Atualizar info da sessão
+                    carregarCarrosSessao(); // Atualizar lista
+                    // Resetar cronômetro
+                    resetarCronometro();
+                } else {
+                    alert('❌ ' + resultado.mensagem);
+                }
+            } catch (error) {
+                alert('❌ Erro ao finalizar dia: ' + error);
+            }
+        }
+
+        // Função para consulta simples por data
+        document.getElementById('formConsultaSimples').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const dados = new URLSearchParams(formData);
+
+            try {
+                const response = await fetch('/consultar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: dados
+                });
+
+                const resultado = await response.json();
+                mostrarResultadoConsulta(resultado, 'statusConsultaSimples', 'resultadoConsultaSimples');
+            } catch (error) {
+                document.getElementById('statusConsultaSimples').innerHTML = '<div class="status erro">❌ Erro: ' + error + '</div>';
+            }
+        });
+
+        // Função para consulta avançada
+        document.getElementById('formConsultaAvancada').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const dados = new URLSearchParams(formData);
+
+            try {
+                const response = await fetch('/consultar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: dados
+                });
+
+                const resultado = await response.json();
+                mostrarResultadoConsulta(resultado, 'statusConsultaAvancada', 'resultadoConsultaAvancada');
+            } catch (error) {
+                document.getElementById('statusConsultaAvancada').innerHTML = '<div class="status erro">❌ Erro: ' + error + '</div>';
+            }
+        });
+
+        // Função para mostrar resultado das consultas
+        function mostrarResultadoConsulta(resultado, statusId, resultadoId) {
+            const statusDiv = document.getElementById(statusId);
+            const resultadoDiv = document.getElementById(resultadoId);
+
+            if (resultado.status === 'ok') {
+                statusDiv.innerHTML = `<div class="status sucesso">✅ ${resultado.mensagem}</div>`;
+
+                if (resultado.carros.length > 0) {
+                    let html = `<h4>📋 Resultados (${resultado.total} carros):</h4>`;
+                    resultado.carros.forEach(carro => {
+                        html += `
+                            <div class="carro-item">
+                                <strong>Carro ${carro.numero}</strong> - ${carro.motorista}
+                                - Saída: ${carro.horario}
+                                <small>(${carro.fiscal} - ${carro.data} - ${carro.linha})</small>
+                                <div style="float: right;">
+                                    <button onclick="abrirModalEdicao(${carro.id}, '${carro.fiscal}', '${carro.data}', '${carro.linha}', '${carro.numero}', '${carro.motorista}', '${carro.horario}')" class="editar">✏️ Editar</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    resultadoDiv.innerHTML = html;
+                } else {
+                    resultadoDiv.innerHTML = '<p>Nenhum registro encontrado para os filtros especificados.</p>';
+                }
+            } else {
+                statusDiv.innerHTML = `<div class="status erro">❌ ${resultado.mensagem}</div>`;
+                resultadoDiv.innerHTML = '';
+            }
+        }
+
+        // Função para estatísticas
+        document.getElementById('formEstatisticas').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const dados = new URLSearchParams(formData);
+
+            try {
+                const response = await fetch('/estatisticas', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: dados
+                });
+
+                const resultado = await response.json();
+                mostrarEstatisticas(resultado);
+            } catch (error) {
+                document.getElementById('statusEstatisticas').innerHTML = '<div class="status erro">❌ Erro: ' + error + '</div>';
+            }
+        });
+
+        // Função para mostrar estatísticas
+        function mostrarEstatisticas(resultado) {
+            const statusDiv = document.getElementById('statusEstatisticas');
+            const resultadoDiv = document.getElementById('resultadoEstatisticas');
+
+            if (resultado.status === 'ok') {
+                const stats = resultado.estatisticas;
+                statusDiv.innerHTML = `<div class="status sucesso">✅ ${resultado.mensagem}</div>`;
+
+                let html = `
+                    <div class="estatistica-item">
+                        <h4>📊 Resumo Geral (${stats.periodo.inicio} até ${stats.periodo.fim})</h4>
+                        <p><strong>Total de Carros:</strong> ${stats.total_carros}</p>
+                    </div>
+                `;
+
+                if (stats.por_fiscal.length > 0) {
+                    html += `<div class="estatistica-item"><h4>👨‍💼 Por Fiscal:</h4>`;
+                    stats.por_fiscal.forEach(item => {
+                        html += `<p>• ${item.fiscal}: ${item.total} carros</p>`;
+                    });
+                    html += `</div>`;
+                }
+
+                if (stats.por_linha.length > 0) {
+                    html += `<div class="estatistica-item"><h4>🚌 Por Linha:</h4>`;
+                    stats.por_linha.forEach(item => {
+                        html += `<p>• ${item.linha}: ${item.total} carros</p>`;
+                    });
+                    html += `</div>`;
+                }
+
+                if (stats.por_dia.length > 0) {
+                    html += `<div class="estatistica-item"><h4>📅 Por Dia:</h4>`;
+                    stats.por_dia.forEach(item => {
+                        html += `<p>• ${item.data}: ${item.total} carros</p>`;
+                    });
+                    html += `</div>`;
+                }
+
+                resultadoDiv.innerHTML = html;
+            } else {
+                statusDiv.innerHTML = `<div class="status erro">❌ ${resultado.mensagem}</div>`;
+                resultadoDiv.innerHTML = '';
+            }
+        }
+
+        // Função para limpar filtros
+        function limparFiltros() {
+            document.getElementById('formConsultaAvancada').reset();
+            document.getElementById('statusConsultaAvancada').innerHTML = '';
+            document.getElementById('resultadoConsultaAvancada').innerHTML = '';
+        }
+
+        // Função para remover carro
+        async function removerCarro(id) {
+            if (!confirm('Tem certeza que deseja remover este carro?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/remover', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `id=${id}`
+                });
+
+                const resultado = await response.json();
+
+                if (resultado.status === 'ok') {
+                    const listaDiv = document.getElementById('listaCarros');
+                    listaDiv.innerHTML = '<div class="status sucesso">✅ ' + resultado.mensagem + '</div>' + listaDiv.innerHTML;
+                    setTimeout(() => {
+                        carregarCarrosSessao();
+                        verificarSessao(); // Atualizar contador
+                        // Atualizar cronômetro após remoção
+                        atualizarListaCarrosPendentes();
+                    }, 1000);
+                } else {
+                    alert('❌ ' + resultado.mensagem);
+                }
+            } catch (error) {
+                alert('❌ Erro: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
