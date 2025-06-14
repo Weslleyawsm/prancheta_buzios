@@ -39,7 +39,7 @@ class DatabaseManager:
         return self.intervalos_por_linha.get(nome_linha, 8)  # Default 8 min
 
     def definir_intervalo_linha(self, nome_linha, novo_intervalo):
-        """Define intervalo específico para uma linha"""
+        """🔧 CORRIGIDO: Define intervalo específico para uma linha SEM ALTERAR HORÁRIOS DRASTICAMENTE"""
         try:
             if not isinstance(novo_intervalo, int) or novo_intervalo < 1 or novo_intervalo > 60:
                 return {'status': 'erro', 'mensagem': 'Intervalo deve ser entre 1 e 60 minutos'}
@@ -47,14 +47,15 @@ class DatabaseManager:
             if nome_linha not in self.intervalos_por_linha:
                 return {'status': 'erro', 'mensagem': f'Linha "{nome_linha}" não reconhecida'}
 
-            print(f"🔧 Definindo intervalo para {nome_linha}: {novo_intervalo} minutos")
+            print(f"🔧 CORRIGIDO: Definindo intervalo para {nome_linha}: {novo_intervalo} minutos")
 
             # Salvar intervalo antigo para log
             intervalo_antigo = self.intervalos_por_linha[nome_linha]
             self.intervalos_por_linha[nome_linha] = novo_intervalo
 
-            # Recalcular horários dos carros pendentes DESTA linha específica
-            carros_atualizados = self.recalcular_horarios_linha_especifica(nome_linha)
+            # 🔧 CORREÇÃO BUG 1: Recalcular horários SEM JOGAR PARA O FUTURO
+            carros_atualizados = self.recalcular_horarios_linha_especifica_corrigido(nome_linha, intervalo_antigo,
+                                                                                     novo_intervalo)
 
             return {
                 'status': 'sucesso',
@@ -69,14 +70,118 @@ class DatabaseManager:
             print(f"❌ Erro ao definir intervalo da linha: {str(e)}")
             return {'status': 'erro', 'mensagem': f'Erro: {str(e)}'}
 
+    def recalcular_horarios_linha_especifica_corrigido(self, nome_linha, intervalo_antigo, novo_intervalo):
+        """🔧 CORREÇÃO BUG 1: Recalcula horários mantendo o primeiro carro e ajustando apenas os intervalos"""
+        try:
+            if not self.fiscal_atual or not self.data_atual:
+                print("❌ Cabeçalho não definido, não é possível recalcular")
+                return 0
+
+            conexao = self.connect()
+            cursor = conexao.cursor()
+
+            # Buscar carros PENDENTES DA LINHA ESPECÍFICA ordenados por horário
+            sql_pendentes = """SELECT id, numero_carro, horario_saida FROM saida_carros 
+                              WHERE nome_fiscal = %s AND data_trabalho = %s 
+                              AND linha = %s AND saida_confirmada = FALSE
+                              ORDER BY horario_saida ASC"""
+
+            valores = (self.fiscal_atual, self.data_atual, nome_linha)
+            cursor.execute(sql_pendentes, valores)
+            carros_pendentes = cursor.fetchall()
+
+            print(f"🔍 CORREÇÃO BUG 1: Carros PENDENTES da linha {nome_linha}: {len(carros_pendentes)}")
+
+            if not carros_pendentes:
+                print(f"✅ Nenhum carro pendente da linha {nome_linha} para recalcular")
+                cursor.close()
+                conexao.close()
+                return 0
+
+            carros_atualizados = 0
+
+            # 🔧 ESTRATÉGIA CORRIGIDA: Manter o primeiro horário, recalcular os seguintes
+            for i, (id_carro, numero_carro, horario_antigo) in enumerate(carros_pendentes):
+                if i == 0:
+                    # MANTER o primeiro carro no mesmo horário
+                    print(
+                        f"🔧 Mantendo PRIMEIRO carro ID {id_carro} (Carro {numero_carro}) no horário original: {horario_antigo}")
+                    continue
+
+                # Para os demais carros: usar o horário do primeiro + (posição * novo_intervalo)
+                primeiro_horario = carros_pendentes[0][2]  # horário do primeiro carro
+
+                # Converter primeiro_horario para datetime se necessário
+                if isinstance(primeiro_horario, timedelta):
+                    total_seconds = int(primeiro_horario.total_seconds())
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    primeiro_horario = time(hours, minutes, 0)
+
+                if isinstance(primeiro_horario, time):
+                    primeiro_datetime = datetime.combine(datetime.now().date(), primeiro_horario)
+                    novo_horario_datetime = primeiro_datetime + timedelta(minutes=i * novo_intervalo)
+                    novo_horario_time = novo_horario_datetime.time().replace(second=0, microsecond=0)
+
+                    print(f"🔧 CORRIGIDO: ID {id_carro} (Carro {numero_carro}): {horario_antigo} → {novo_horario_time}")
+
+                    # Atualizar horário
+                    sql_update = """UPDATE saida_carros 
+                                   SET horario_saida = %s 
+                                   WHERE id = %s"""
+
+                    cursor.execute(sql_update, (novo_horario_time, id_carro))
+
+                    if cursor.rowcount == 1:
+                        carros_atualizados += 1
+                        print(f"✅ ID {id_carro} atualizado com sucesso")
+
+            # Commit das alterações
+            conexao.commit()
+            print(f"💾 CORREÇÃO BUG 1: Linha {nome_linha}: {carros_atualizados} carros atualizados corretamente")
+
+            cursor.close()
+            conexao.close()
+
+            return carros_atualizados
+
+        except Exception as e:
+            print(f"❌ ERRO ao recalcular horários da linha {nome_linha}: {str(e)}")
+            try:
+                conexao.rollback()
+                cursor.close()
+                conexao.close()
+            except:
+                pass
+            return 0
+
     def calcular_proximo_horario_linha(self, nome_linha):
-        """Calcula próximo horário baseado no ÚLTIMO carro DA LINHA ESPECÍFICA com lógica inteligente"""
+        """🔧 CORRIGIDO: Calcula próximo horário baseado no ÚLTIMO carro DA LINHA com lógica corrigida"""
         try:
             conexao = self.connect()
             cursor = conexao.cursor()
 
-            print(f"🔍 Calculando próximo horário para linha: {nome_linha}")
+            print(f"🔍 CORRIGIDO: Calculando próximo horário para linha: {nome_linha}")
             print(f"🔍 Fiscal: {self.fiscal_atual}, Data: {self.data_atual}")
+
+            # 🔧 CORREÇÃO BUG 2: Verificar se há carros na sessão atual primeiro
+            sql_todos_carros = """SELECT COUNT(*) FROM saida_carros 
+                                 WHERE nome_fiscal = %s AND data_trabalho = %s"""
+
+            cursor.execute(sql_todos_carros, (self.fiscal_atual, self.data_atual))
+            total_carros_sessao = cursor.fetchone()[0]
+
+            print(f"🔍 CORREÇÃO BUG 2: Total de carros na sessão atual: {total_carros_sessao}")
+
+            # Se não há carros na sessão, começar do zero
+            if total_carros_sessao == 0:
+                agora = datetime.now()
+                primeiro_horario = agora + timedelta(minutes=10)
+                resultado = primeiro_horario.time().replace(second=0, microsecond=0)
+                print(f"🆕 CORREÇÃO BUG 2: Primeira sessão, começando em: {resultado}")
+                cursor.close()
+                conexao.close()
+                return resultado
 
             # 🎯 PASSO 1: Verificar se há carros AGUARDANDO na linha
             sql_aguardando = """SELECT horario_saida FROM saida_carros 
@@ -150,13 +255,14 @@ class DatabaseManager:
                     print(f"🔍 Último confirmado: {ultimo_horario}")
                     print(f"🔍 Horário esperado seria: {horario_esperado}")
 
-                    # 🎯 REGRA INTELIGENTE: Se passou do tempo, usar agora + intervalo
+                    # 🔧 CORREÇÃO BUG 3: Se passou do tempo, usar agora + intervalo (não mais 1 dia depois)
                     if agora.time() > horario_esperado:
-                        print(f"⚡ CARRO ATRASADO! Passou do horário esperado ({horario_esperado})")
-                        print(f"⚡ Usando horário atual + {intervalo_linha} minutos")
+                        print(
+                            f"⚡ CORREÇÃO BUG 3: Carro atrasado! Horário atual ({agora.strftime('%H:%M')}) > esperado ({horario_esperado})")
+                        print(f"⚡ Usando AGORA + {intervalo_linha} minutos (evitando dia seguinte)")
                         proximo_datetime = agora + timedelta(minutes=intervalo_linha)
                         proximo_horario = proximo_datetime.time().replace(second=0, microsecond=0)
-                        print(f"⏰ Novo horário calculado: {proximo_horario}")
+                        print(f"⏰ CORRIGIDO: Novo horário é {proximo_horario} (baseado no horário atual)")
                         cursor.close()
                         conexao.close()
                         return proximo_horario
@@ -179,129 +285,6 @@ class DatabaseManager:
             print(f"❌ Erro ao calcular próximo horário da linha: {e}")
             agora = datetime.now()
             return (agora + timedelta(minutes=10)).time().replace(second=0, microsecond=0)
-
-    def recalcular_horarios_linha_especifica(self, nome_linha):
-        """Recalcula horários apenas dos carros pendentes DE UMA LINHA ESPECÍFICA usando LÓGICA INTELIGENTE"""
-        try:
-            if not self.fiscal_atual or not self.data_atual:
-                print("❌ Cabeçalho não definido, não é possível recalcular")
-                return 0
-
-            conexao = self.connect()
-            cursor = conexao.cursor()
-
-            # Buscar carros PENDENTES DA LINHA ESPECÍFICA
-            sql_pendentes = """SELECT id, numero_carro, horario_saida FROM saida_carros 
-                              WHERE nome_fiscal = %s AND data_trabalho = %s 
-                              AND linha = %s AND saida_confirmada = FALSE
-                              ORDER BY horario_saida ASC"""
-
-            valores = (self.fiscal_atual, self.data_atual, nome_linha)
-            cursor.execute(sql_pendentes, valores)
-            carros_pendentes = cursor.fetchall()
-
-            print(f"🔍 Carros PENDENTES da linha {nome_linha}: {len(carros_pendentes)}")
-
-            if not carros_pendentes:
-                print(f"✅ Nenhum carro pendente da linha {nome_linha} para recalcular")
-                cursor.close()
-                conexao.close()
-                return 0
-
-            # 🆕 LÓGICA INTELIGENTE: Usar a mesma lógica do calcular_proximo_horario_linha
-            agora = datetime.now()
-            intervalo_linha = self.obter_intervalo_linha(nome_linha)
-
-            # Verificar último carro CONFIRMADO da linha
-            sql_confirmado = """SELECT horario_saida FROM saida_carros 
-                               WHERE nome_fiscal = %s AND data_trabalho = %s AND linha = %s
-                               AND saida_confirmada = TRUE
-                               ORDER BY horario_saida DESC 
-                               LIMIT 1"""
-
-            cursor.execute(sql_confirmado, valores)
-            ultimo_confirmado = cursor.fetchone()
-
-            print(f"🔍 Último carro CONFIRMADO da linha {nome_linha}: {ultimo_confirmado}")
-            print(f"🔍 Horário atual: {agora.strftime('%H:%M:%S')}")
-            print(f"🔍 Intervalo da linha {nome_linha}: {intervalo_linha} minutos")
-
-            # Determinar horário base INTELIGENTE
-            if ultimo_confirmado and ultimo_confirmado[0]:
-                ultimo_horario = ultimo_confirmado[0]
-
-                # Converter timedelta para time se necessário
-                if isinstance(ultimo_horario, timedelta):
-                    total_seconds = int(ultimo_horario.total_seconds())
-                    hours = total_seconds // 3600
-                    minutes = (total_seconds % 3600) // 60
-                    ultimo_horario = time(hours, minutes, 0)
-
-                if isinstance(ultimo_horario, time):
-                    ultimo_datetime = datetime.combine(datetime.now().date(), ultimo_horario)
-                    horario_esperado_datetime = ultimo_datetime + timedelta(minutes=intervalo_linha)
-                    horario_esperado = horario_esperado_datetime.time()
-
-                    print(f"🔍 Último confirmado: {ultimo_horario}")
-                    print(f"🔍 Horário esperado seria: {horario_esperado}")
-
-                    # 🎯 REGRA INTELIGENTE: Se passou do tempo, usar agora + intervalo
-                    if agora.time() > horario_esperado:
-                        print(f"⚡ CARRO ATRASADO! Passou do horário esperado ({horario_esperado})")
-                        print(f"⚡ Usando horário atual + {intervalo_linha} minutos para BASE")
-                        horario_base_datetime = agora + timedelta(minutes=intervalo_linha)
-                    else:
-                        print(f"✅ Dentro do prazo, usando horário esperado como BASE: {horario_esperado}")
-                        horario_base_datetime = horario_esperado_datetime
-            else:
-                # Primeiro da linha - usar horário atual + 10 minutos
-                print(f"⏰ PRIMEIRO carro da linha {nome_linha} - usando agora + 10 min como BASE")
-                horario_base_datetime = agora + timedelta(minutes=10)
-
-            horario_base_datetime = horario_base_datetime.replace(second=0, microsecond=0)
-            print(f"⏰ BASE FINAL para recálculo da linha {nome_linha}: {horario_base_datetime.strftime('%H:%M:%S')}")
-
-            carros_atualizados = 0
-
-            # Recalcular carros pendentes baseado na BASE INTELIGENTE
-            for i, (id_carro, numero_carro, horario_antigo) in enumerate(carros_pendentes):
-                # Calcular novo horário
-                novo_horario_datetime = horario_base_datetime + timedelta(minutes=i * intervalo_linha)
-                novo_horario_datetime = novo_horario_datetime.replace(second=0, microsecond=0)
-                novo_horario_time = novo_horario_datetime.time()
-
-                print(
-                    f"🔧 Linha {nome_linha} - Atualizando ID {id_carro} (Carro {numero_carro}): {horario_antigo} → {novo_horario_time}")
-
-                # Atualizar horário
-                sql_update = """UPDATE saida_carros 
-                               SET horario_saida = %s 
-                               WHERE id = %s"""
-
-                cursor.execute(sql_update, (novo_horario_time, id_carro))
-
-                if cursor.rowcount == 1:
-                    carros_atualizados += 1
-                    print(f"✅ ID {id_carro} atualizado com sucesso")
-
-            # Commit das alterações
-            conexao.commit()
-            print(f"💾 Linha {nome_linha}: {carros_atualizados} carros atualizados com LÓGICA INTELIGENTE")
-
-            cursor.close()
-            conexao.close()
-
-            return carros_atualizados
-
-        except Exception as e:
-            print(f"❌ ERRO ao recalcular horários da linha {nome_linha}: {str(e)}")
-            try:
-                conexao.rollback()
-                cursor.close()
-                conexao.close()
-            except:
-                pass
-            return 0
 
     # 🔄 FUNÇÃO MODIFICADA: inserir_dados_motorista agora usa horário por linha
     def inserir_dados_motorista(self, numero_carro, nome_motorista, linha_carro, horario_saida=None):
@@ -397,16 +380,35 @@ class DatabaseManager:
 
     def calcular_proximo_horario(self):
         """
-        FUNÇÃO ORIGINAL MANTIDA: Calcula próximo horário baseado no ÚLTIMO carro (independente de confirmação)
+        🔧 CORRIGIDO: Função original corrigida com as mesmas melhorias
         """
         try:
             conexao = self.connect()
             cursor = conexao.cursor()
 
-            print(f"🔍 Calculando próximo horário...")
+            print(f"🔍 CORRIGIDO: Calculando próximo horário GERAL...")
             print(f"🔍 Fiscal: {self.fiscal_atual}, Data: {self.data_atual}")
 
-            # CORREÇÃO CRÍTICA: Buscar ÚLTIMO carro da sessão (confirmado ou não)
+            # 🔧 CORREÇÃO BUG 2: Verificar se há carros na sessão atual primeiro
+            sql_todos_carros = """SELECT COUNT(*) FROM saida_carros 
+                                 WHERE nome_fiscal = %s AND data_trabalho = %s"""
+
+            cursor.execute(sql_todos_carros, (self.fiscal_atual, self.data_atual))
+            total_carros_sessao = cursor.fetchone()[0]
+
+            print(f"🔍 CORREÇÃO BUG 2 (GERAL): Total de carros na sessão atual: {total_carros_sessao}")
+
+            # Se não há carros na sessão, começar do zero
+            if total_carros_sessao == 0:
+                agora = datetime.now()
+                primeiro_horario = agora + timedelta(minutes=10)
+                resultado = primeiro_horario.time().replace(second=0, microsecond=0)
+                print(f"🆕 CORREÇÃO BUG 2 (GERAL): Primeira sessão, começando em: {resultado}")
+                cursor.close()
+                conexao.close()
+                return resultado
+
+            # Buscar ÚLTIMO carro da sessão (confirmado ou não)
             sql = """SELECT horario_saida FROM saida_carros 
                      WHERE nome_fiscal = %s AND data_trabalho = %s 
                      ORDER BY horario_saida DESC 
@@ -415,17 +417,6 @@ class DatabaseManager:
             valores = (self.fiscal_atual, self.data_atual)
             cursor.execute(sql, valores)
             ultimo_carro = cursor.fetchone()
-
-            # DEBUG: Ver todos os carros para entender
-            sql_debug = """SELECT numero_carro, horario_saida FROM saida_carros 
-                          WHERE nome_fiscal = %s AND data_trabalho = %s 
-                          ORDER BY horario_saida DESC"""
-            cursor.execute(sql_debug, valores)
-            todos_carros = cursor.fetchall()
-
-            print(f"🔍 Carros na sessão:")
-            for carro in todos_carros:
-                print(f"    Carro {carro[0]} - {carro[1]}")
 
             cursor.close()
             conexao.close()
@@ -446,6 +437,13 @@ class DatabaseManager:
                 if isinstance(ultimo_horario, time):
                     ultimo_datetime = datetime.combine(datetime.now().date(), ultimo_horario)
                     proximo_datetime = ultimo_datetime + timedelta(minutes=self.intervalo_atual)
+
+                    # 🔧 CORREÇÃO BUG 3: Verificar se não está muito no futuro
+                    agora = datetime.now()
+                    if proximo_datetime.time() < agora.time():  # Se horário calculado já passou
+                        print(f"⚡ CORREÇÃO BUG 3 (GERAL): Horário calculado já passou, usando agora + intervalo")
+                        proximo_datetime = agora + timedelta(minutes=self.intervalo_atual)
+
                     proximo_horario = proximo_datetime.time().replace(second=0, microsecond=0)
                     print(f"⏰ CORRETO: Último ({ultimo_horario}) + {self.intervalo_atual}min = {proximo_horario}")
                     return proximo_horario
@@ -596,17 +594,18 @@ class DatabaseManager:
     # ========== FUNCIONALIDADE ORIGINAL: CONTROLE DE INTERVALO ==========
 
     def definir_intervalo(self, novo_intervalo):
-        """Define novo intervalo entre carros e recalcula horários dos carros pendentes"""
+        """🔧 CORRIGIDO: Define novo intervalo entre carros e recalcula horários dos carros pendentes SEM JOGAR PARA O FUTURO"""
         try:
             if not isinstance(novo_intervalo, int) or novo_intervalo < 1 or novo_intervalo > 60:
                 print("❌ Intervalo deve ser um número entre 1 e 60 minutos")
                 return {'status': 'erro', 'mensagem': 'Intervalo deve ser entre 1 e 60 minutos'}
 
-            print(f"🔧 Definindo novo intervalo: {novo_intervalo} minutos")
+            print(f"🔧 CORRIGIDO: Definindo novo intervalo GERAL: {novo_intervalo} minutos")
+            intervalo_antigo = self.intervalo_atual
             self.intervalo_atual = novo_intervalo
 
-            # Recalcular horários dos carros pendentes
-            carros_atualizados = self.recalcular_horarios_carros_pendentes()
+            # 🔧 CORREÇÃO BUG 1: Recalcular horários SEM JOGAR PARA O FUTURO
+            carros_atualizados = self.recalcular_horarios_carros_pendentes_corrigido(intervalo_antigo, novo_intervalo)
 
             return {
                 'status': 'sucesso',
@@ -619,10 +618,8 @@ class DatabaseManager:
             print(f"❌ Erro ao definir intervalo: {str(e)}")
             return {'status': 'erro', 'mensagem': f'Erro ao definir intervalo: {str(e)}'}
 
-    def recalcular_horarios_carros_pendentes(self):
-        """
-        FUNÇÃO ORIGINAL CORRIGIDA: Recalcula horários SEM DUPLICAR registros usando LÓGICA INTELIGENTE
-        """
+    def recalcular_horarios_carros_pendentes_corrigido(self, intervalo_antigo, novo_intervalo):
+        """🔧 CORREÇÃO BUG 1: Recalcula horários mantendo primeiro carro e ajustando apenas intervalos"""
         try:
             if not self.fiscal_atual or not self.data_atual:
                 print("❌ Cabeçalho não definido, não é possível recalcular")
@@ -631,16 +628,16 @@ class DatabaseManager:
             conexao = self.connect()
             cursor = conexao.cursor()
 
-            # Buscar apenas carros PENDENTES para recalcular
+            # Buscar apenas carros PENDENTES para recalcular (TODAS AS LINHAS)
             sql_pendentes = """SELECT id, numero_carro, horario_saida FROM saida_carros 
                               WHERE nome_fiscal = %s AND data_trabalho = %s 
                               AND saida_confirmada = FALSE
-                              ORDER BY id ASC"""
+                              ORDER BY horario_saida ASC"""
 
             cursor.execute(sql_pendentes, (self.fiscal_atual, self.data_atual))
             carros_pendentes = cursor.fetchall()
 
-            print(f"🔍 Carros PENDENTES para recalcular (TODAS AS LINHAS): {len(carros_pendentes)}")
+            print(f"🔍 CORREÇÃO BUG 1: Carros PENDENTES para recalcular (TODAS AS LINHAS): {len(carros_pendentes)}")
 
             if not carros_pendentes:
                 print("✅ Nenhum carro pendente para recalcular")
@@ -648,41 +645,47 @@ class DatabaseManager:
                 conexao.close()
                 return 0
 
-            # 🆕 LÓGICA INTELIGENTE: Usar horário atual como base (não carros antigos)
-            agora = datetime.now()
-            horario_base = agora + timedelta(minutes=10)  # Base: agora + 10 minutos
-            horario_base = horario_base.replace(second=0, microsecond=0)
-
-            print(f"⏰ BASE INTELIGENTE para recálculo: {horario_base.strftime('%H:%M:%S')} (agora + 10 min)")
-            print(f"⏰ INTERVALO GERAL: {self.intervalo_atual} minutos")
-
             carros_atualizados = 0
 
+            # 🔧 ESTRATÉGIA CORRIGIDA: Manter o primeiro horário, recalcular os seguintes
             for i, (id_carro, numero_carro, horario_antigo) in enumerate(carros_pendentes):
-                # Calcular novo horário baseado na BASE INTELIGENTE
-                novo_horario_datetime = horario_base + timedelta(minutes=i * self.intervalo_atual)
-                novo_horario_datetime = novo_horario_datetime.replace(second=0, microsecond=0)
-                novo_horario_time = novo_horario_datetime.time()
+                if i == 0:
+                    # MANTER o primeiro carro no mesmo horário
+                    print(
+                        f"🔧 Mantendo PRIMEIRO carro ID {id_carro} (Carro {numero_carro}) no horário original: {horario_antigo}")
+                    continue
 
-                print(f"🔧 Atualizando ID {id_carro} (Carro {numero_carro}): {horario_antigo} → {novo_horario_time}")
+                # Para os demais carros: usar o horário do primeiro + (posição * novo_intervalo)
+                primeiro_horario = carros_pendentes[0][2]  # horário do primeiro carro
 
-                # ATUALIZAR (não inserir novo registro)
-                sql_update = """UPDATE saida_carros 
-                               SET horario_saida = %s 
-                               WHERE id = %s"""
+                # Converter primeiro_horario para datetime se necessário
+                if isinstance(primeiro_horario, timedelta):
+                    total_seconds = int(primeiro_horario.total_seconds())
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    primeiro_horario = time(hours, minutes, 0)
 
-                cursor.execute(sql_update, (novo_horario_time, id_carro))
+                if isinstance(primeiro_horario, time):
+                    primeiro_datetime = datetime.combine(datetime.now().date(), primeiro_horario)
+                    novo_horario_datetime = primeiro_datetime + timedelta(minutes=i * novo_intervalo)
+                    novo_horario_time = novo_horario_datetime.time().replace(second=0, microsecond=0)
 
-                # Verificar se a atualização funcionou
-                if cursor.rowcount == 1:
-                    carros_atualizados += 1
-                    print(f"✅ ID {id_carro} atualizado com sucesso")
-                else:
-                    print(f"❌ Falha ao atualizar ID {id_carro} - Linhas afetadas: {cursor.rowcount}")
+                    print(f"🔧 CORRIGIDO: ID {id_carro} (Carro {numero_carro}): {horario_antigo} → {novo_horario_time}")
 
-            # COMMIT apenas uma vez no final
+                    # Atualizar horário
+                    sql_update = """UPDATE saida_carros 
+                                   SET horario_saida = %s 
+                                   WHERE id = %s"""
+
+                    cursor.execute(sql_update, (novo_horario_time, id_carro))
+
+                    if cursor.rowcount == 1:
+                        carros_atualizados += 1
+                        print(f"✅ ID {id_carro} atualizado com sucesso")
+
+            # Commit das alterações
             conexao.commit()
-            print(f"💾 Transação commitada - {carros_atualizados} carros atualizados com LÓGICA INTELIGENTE")
+            print(f"💾 CORREÇÃO BUG 1: {carros_atualizados} carros atualizados corretamente (GERAL)")
 
             cursor.close()
             conexao.close()
