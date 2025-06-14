@@ -507,6 +507,28 @@
         .hidden {
             display: none;
         }
+
+        /* Auto-refresh indicator styles */
+        #auto-refresh-indicator {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 123, 255, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1000;
+            cursor: pointer;
+            transition: all 0.3s;
+            user-select: none;
+        }
+
+        #auto-refresh-indicator:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -705,13 +727,102 @@
             }
         };
 
+        // ===== SISTEMA DE AUTO-REFRESH =====
+        let autoRefreshAtivo = true;
+        let intervaloAutoRefresh = null;
+
+        function iniciarAutoRefresh() {
+            if (intervaloAutoRefresh) {
+                clearInterval(intervaloAutoRefresh);
+            }
+
+            // Auto-refresh a cada 5 segundos (igual ao motorista.html)
+            intervaloAutoRefresh = setInterval(async () => {
+                if (!document.hidden && sessaoAtiva && autoRefreshAtivo) { // Só atualiza se aba estiver ativa e sessão ativa
+                    try {
+                        console.log('🔄 Auto-refresh do painel administrativo...');
+
+                        // Atualizar dados principais
+                        await atualizarCarros();
+
+                        // Recarregar intervalos das linhas (sem reinicializar cronômetros)
+                        await carregarIntervalosLinhas();
+
+                        // Log silencioso (sem mostrar alerta)
+                        log('Auto-refresh executado com sucesso');
+
+                    } catch (error) {
+                        console.error('Erro no auto-refresh:', error);
+                        log(`Erro no auto-refresh: ${error.message}`);
+                    }
+                }
+            }, 5000); // 5 segundos
+
+            log('🔄 Auto-refresh iniciado (5 segundos)');
+        }
+
+        function pararAutoRefresh() {
+            if (intervaloAutoRefresh) {
+                clearInterval(intervaloAutoRefresh);
+                intervaloAutoRefresh = null;
+                log('⏸️ Auto-refresh pausado');
+            }
+        }
+
+        function toggleAutoRefresh() {
+            autoRefreshAtivo = !autoRefreshAtivo;
+            if (autoRefreshAtivo) {
+                mostrarAlerta('🔄 Auto-refresh ativado!', 'success');
+                log('Auto-refresh reativado pelo usuário');
+            } else {
+                mostrarAlerta('⏸️ Auto-refresh pausado!', 'info');
+                log('Auto-refresh pausado pelo usuário');
+            }
+            atualizarIndicadorAutoRefresh();
+        }
+
+        function criarIndicadorAutoRefresh() {
+            const indicador = document.createElement('div');
+            indicador.id = 'auto-refresh-indicator';
+            indicador.innerHTML = '🔄 Auto-refresh: <span id="status-refresh">ATIVO</span>';
+
+            indicador.addEventListener('click', toggleAutoRefresh);
+            document.body.appendChild(indicador);
+
+            // Atualizar indicador baseado no status
+            atualizarIndicadorAutoRefresh();
+        }
+
+        function atualizarIndicadorAutoRefresh() {
+            const indicador = document.getElementById('auto-refresh-indicator');
+            const statusSpan = document.getElementById('status-refresh');
+
+            if (indicador && statusSpan) {
+                if (!sessaoAtiva) {
+                    statusSpan.textContent = 'AGUARDANDO';
+                    indicador.style.background = 'rgba(108, 117, 125, 0.9)';
+                } else if (autoRefreshAtivo) {
+                    statusSpan.textContent = 'ATIVO';
+                    indicador.style.background = 'rgba(40, 167, 69, 0.9)';
+                } else {
+                    statusSpan.textContent = 'PAUSADO';
+                    indicador.style.background = 'rgba(255, 193, 7, 0.9)';
+                }
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const hoje = new Date().toISOString().split('T')[0];
             document.getElementById('data').value = hoje;
             verificarSessaoAtiva();
             carregarIntervalosLinhas();
             inicializarCronometros();
-            setInterval(atualizarCarros, 30000);
+
+            // Criar indicador de auto-refresh
+            setTimeout(() => {
+                criarIndicadorAutoRefresh();
+                setInterval(atualizarIndicadorAutoRefresh, 1000);
+            }, 1000);
         });
 
         // ===== FUNÇÕES DE CRONÔMETRO AUTOMÁTICO =====
@@ -806,7 +917,7 @@
         }
 
         function marcarCarroComoSaidoAutomaticamente(linha, numeroCarro) {
-            log(`Marcando carro ${numeroCarro} da linha ${linha} como saído automaticamente`);
+            log(`🚌 Tentando marcar carro ${numeroCarro} da linha ${linha} como saído automaticamente`);
 
             // Encontrar o ID do carro na lista para confirmar saída
             fetch('/listar-por-linha')
@@ -817,6 +928,8 @@
                     const carro = carrosLinha.find(c => c.numero === numeroCarro && c.status === 'AGUARDANDO');
 
                     if (carro) {
+                        log(`✅ Carro ${numeroCarro} encontrado, confirmando saída automaticamente...`);
+
                         // Confirmar saída automaticamente
                         const dados = `id=${carro.id}`;
 
@@ -829,41 +942,67 @@
                         .then(result => {
                             if (result.status === 'ok') {
                                 mostrarAlerta(`🚌 Carro ${numeroCarro} saiu automaticamente às ${new Date().toLocaleTimeString()}!`, 'success');
+                                log(`✅ Carro ${numeroCarro} marcado como saído com sucesso`);
 
-                                // Iniciar contagem regressiva baseada no intervalo
-                                const intervaloMinutos = intervalosLinha[linha] || 8;
-                                iniciarContagemRegressiva(linha, intervaloMinutos);
+                                // FORÇAR atualização imediata da lista
+                                setTimeout(() => {
+                                    atualizarCarros().then(() => {
+                                        log(`🔄 Lista atualizada após saída automática do carro ${numeroCarro}`);
 
-                                // Atualizar lista após 2 segundos
+                                        // Verificar se há próximo carro aguardando
+                                        const proximoCarro = carrosLinha.find(c =>
+                                            c.numero !== numeroCarro &&
+                                            c.status === 'AGUARDANDO'
+                                        );
+
+                                        if (proximoCarro) {
+                                            log(`🔍 Próximo carro encontrado: ${proximoCarro.numero} - ${proximoCarro.horario}`);
+                                            // O atualizarCarros() já vai pegar o próximo carro automaticamente
+                                        } else {
+                                            log(`⏰ Nenhum próximo carro na linha ${linha}, iniciando contagem regressiva`);
+                                            // Iniciar contagem regressiva baseada no intervalo
+                                            const intervaloMinutos = intervalosLinha[linha] || 8;
+                                            iniciarContagemRegressiva(linha, intervaloMinutos);
+                                        }
+                                    });
+                                }, 1000); // Aguardar 1 segundo para dar tempo de processar no backend
+
+                            } else {
+                                log(`❌ Erro ao confirmar saída automática: ${result.mensagem}`);
+                                // Em caso de erro, ainda assim continuar com próximo carro
                                 setTimeout(() => {
                                     atualizarCarros();
-                                }, 2000);
-                            } else {
-                                log(`Erro ao confirmar saída automática: ${result.mensagem}`);
-                                // Em caso de erro, só iniciar contagem regressiva
-                                const intervaloMinutos = intervalosLinha[linha] || 8;
-                                iniciarContagemRegressiva(linha, intervaloMinutos);
+                                }, 1000);
                             }
                         })
                         .catch(error => {
-                            log(`Erro na confirmação automática: ${error}`);
-                            // Em caso de erro, só iniciar contagem regressiva
-                            const intervaloMinutos = intervalosLinha[linha] || 8;
-                            iniciarContagemRegressiva(linha, intervaloMinutos);
+                            log(`❌ Erro na confirmação automática: ${error}`);
+                            // Em caso de erro, ainda assim continuar
+                            setTimeout(() => {
+                                atualizarCarros();
+                            }, 1000);
                         });
                     } else {
-                        log(`Carro ${numeroCarro} não encontrado ou já saiu`);
-                        // Só iniciar contagem regressiva
-                        const intervaloMinutos = intervalosLinha[linha] || 8;
-                        iniciarContagemRegressiva(linha, intervaloMinutos);
+                        log(`⚠️ Carro ${numeroCarro} não encontrado ou já saiu`);
+                        // Se não encontrou o carro, atualizar lista para pegar estado atual
+                        setTimeout(() => {
+                            atualizarCarros();
+                        }, 1000);
                     }
+                } else {
+                    log(`❌ Erro ao buscar dados da linha ${linha}`);
+                    // Em caso de erro, atualizar lista
+                    setTimeout(() => {
+                        atualizarCarros();
+                    }, 1000);
                 }
             })
             .catch(error => {
-                log(`Erro ao buscar dados do carro: ${error}`);
-                // Em caso de erro, só iniciar contagem regressiva
-                const intervaloMinutos = intervalosLinha[linha] || 8;
-                iniciarContagemRegressiva(linha, intervaloMinutos);
+                log(`❌ Erro ao buscar dados do carro: ${error}`);
+                // Em caso de erro, atualizar lista
+                setTimeout(() => {
+                    atualizarCarros();
+                }, 1000);
             });
         }
 
@@ -883,17 +1022,19 @@
                 } else {
                     // Tempo esgotado, buscar próximo carro
                     pararCronometro(linha);
-                    mostrarAlerta(`⏰ Intervalo esgotado para linha ${linha}! Buscando próximo carro...`, 'info');
+                    log(`⏰ Intervalo esgotado para linha ${linha}! Buscando próximo carro...`);
 
                     // Atualizar para pegar próximo carro
                     setTimeout(() => {
-                        atualizarCarros();
+                        atualizarCarros().then(() => {
+                            log(`🔄 Lista atualizada após fim do intervalo da linha ${linha}`);
+                        });
                     }, 1000);
                 }
                 atualizarDisplayCronometro(linha);
             }, 1000);
 
-            log(`Contagem regressiva iniciada para ${linha} - ${intervaloMinutos} minutos`);
+            log(`⏰ Contagem regressiva iniciada para ${linha} - ${intervaloMinutos} minutos`);
 
             // Atualizar informação do próximo carro durante contagem regressiva
             cronometro.proximoCarro = `Intervalo ${intervaloMinutos}min`;
@@ -980,6 +1121,9 @@
             document.getElementById('secao-carros').classList.remove('hidden');
             document.getElementById('secao-controles').classList.remove('hidden');
             document.getElementById('secao-estatisticas').classList.remove('hidden');
+
+            // Iniciar auto-refresh quando sessão for ativada
+            iniciarAutoRefresh();
         }
 
         function adicionarCarro() {
@@ -1018,12 +1162,14 @@
             });
         }
 
-        function atualizarCarros() {
+        // Função melhorada de atualização de carros (async)
+        async function atualizarCarros() {
             if (!sessaoAtiva) return;
 
-            fetch('/listar-por-linha')
-            .then(response => response.json())
-            .then(data => {
+            try {
+                const response = await fetch('/listar-por-linha');
+                const data = await response.json();
+
                 if (data.status === 'ok') {
                     renderizarCarrosPorLinha(data.carros_por_linha);
                     atualizarEstatisticas(data);
@@ -1031,8 +1177,9 @@
                 } else {
                     console.error('Erro ao buscar carros:', data.mensagem);
                 }
-            })
-            .catch(error => console.error('Erro:', error));
+            } catch (error) {
+                console.error('Erro:', error);
+            }
         }
 
         function atualizarProximosCarros(carrosPorLinha) {
@@ -1049,15 +1196,16 @@
                         if (cronometroAtual.proximoCarro === proximoCarro.numero &&
                             cronometroAtual.horarioProximoCarro === proximoCarro.horario) {
                             // É o mesmo carro, não reiniciar cronômetro
-                            log(`Mantendo cronômetro para ${linha} - Carro ${proximoCarro.numero}`);
+                            // log(`⏱️ Mantendo cronômetro para ${linha} - Carro ${proximoCarro.numero}`);
                             return;
                         }
 
                         // É um carro diferente, iniciar novo cronômetro
-                        log(`Novo carro detectado para ${linha} - Carro ${proximoCarro.numero}`);
+                        log(`🆕 Novo carro detectado para ${linha} - Carro ${proximoCarro.numero} às ${proximoCarro.horario}`);
                         iniciarCronometroAutomatico(linha, proximoCarro.numero, proximoCarro.horario);
                     } else {
-                        // Todos saíram, parar cronômetro
+                        // Todos os carros saíram, parar cronômetro
+                        log(`✅ Todos os carros da linha ${linha} saíram`);
                         pararCronometro(linha);
                         cronometros[linha].proximoCarro = null;
                         atualizarDisplayCronometro(linha);
@@ -1170,10 +1318,12 @@
             });
         }
 
-        function carregarIntervalosLinhas() {
-            fetch('/intervalos-linhas')
-            .then(response => response.json())
-            .then(data => {
+        // Função melhorada de carregamento de intervalos (async)
+        async function carregarIntervalosLinhas() {
+            try {
+                const response = await fetch('/intervalos-linhas');
+                const data = await response.json();
+
                 if (data.status === 'ok') {
                     intervalosLinha = data.intervalos;
 
@@ -1183,11 +1333,12 @@
                     document.getElementById('novo-intervalo-vila-verde').value = intervalosLinha['Centro x Vila Verde'];
                     document.getElementById('novo-intervalo-rasa').value = intervalosLinha['Centro x Rasa'];
 
-                    // Atualizar cronômetros com novos intervalos
-                    inicializarCronometros();
+                    // Não reinicializar cronômetros desnecessariamente durante auto-refresh
+                    // inicializarCronometros(); // Comentado para evitar reset
                 }
-            })
-            .catch(error => console.error('Erro ao carregar intervalos:', error));
+            } catch (error) {
+                console.error('Erro ao carregar intervalos:', error);
+            }
         }
 
         function definirIntervaloLinha(linha) {
@@ -1325,6 +1476,9 @@
                 pararCronometro(linha);
             });
 
+            // Parar auto-refresh antes de finalizar
+            pararAutoRefresh();
+
             fetch('/finalizar-dia', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1345,6 +1499,9 @@
 
                     // Resetar cronômetros
                     inicializarCronometros();
+
+                    // Atualizar indicador
+                    atualizarIndicadorAutoRefresh();
                 } else {
                     mostrarAlerta(data.mensagem || 'Erro ao finalizar dia', 'error');
                 }
@@ -1440,10 +1597,25 @@
                 }
             }
 
+            // Atalho para pausar/retomar auto-refresh (Ctrl + R)
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault(); // Previne refresh da página
+                toggleAutoRefresh();
+            }
+
             // Atalhos para atualizar
             if (e.key === 'F5') {
                 e.preventDefault();
                 atualizarCarros();
+            }
+        });
+
+        // Pausar auto-refresh quando aba não estiver visível (economizar recursos)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                log('👁️ Aba não visível - auto-refresh pausado temporariamente');
+            } else {
+                log('👁️ Aba visível novamente - auto-refresh reativado');
             }
         });
 
@@ -1514,9 +1686,14 @@
             return originalAdicionarCarro.apply(this, arguments);
         };
 
+        console.log('🔄 Sistema de auto-refresh carregado!');
+        console.log('💡 Dica: Ctrl + R para pausar/retomar auto-refresh');
+        console.log('💡 Clique no indicador no canto inferior direito para controlar');
+
         log('Sistema de controle carregado com sucesso!');
-        log('Funcionalidades: Gestão por linha, intervalos independentes, cronômetros automáticos');
+        log('Funcionalidades: Gestão por linha, intervalos independentes, cronômetros automáticos, auto-refresh');
         log('Cronômetros iniciam automaticamente baseados nos horários de saída dos carros');
+        log('🔄 Auto-refresh ativo: atualiza a cada 5 segundos quando sessão ativa');
     </script>
 </body>
 </html>
