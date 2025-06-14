@@ -556,6 +556,19 @@
         atualizarTabelas();
         carregarIntervalosLinhas();
 
+        // 🆕 AUTO-REFRESH - Atualiza a cada 5 segundos
+        setInterval(async () => {
+            if (!document.hidden) { // Só atualiza se aba estiver ativa
+                try {
+                    console.log('🔄 Atualizando painel do motorista...');
+                    await atualizarTabelas();
+                    await carregarIntervalosLinhas();
+                } catch (error) {
+                    console.error('Erro ao atualizar painel do motorista:', error);
+                }
+            }
+        }, 5000); // 5 segundos
+
         // Carregar intervalos das linhas
         async function carregarIntervalosLinhas() {
             try {
@@ -928,9 +941,10 @@
             });
         });
 
-        console.log('🚌 Painel dos Motoristas carregado com tabelas!');
+        console.log('🚌 Painel dos Motoristas carregado com tabelas e AUTO-REFRESH!');
         console.log('💡 Dica: Shift + Enter para limpar campos');
         console.log('💡 F5 para atualizar tabelas manualmente');
+        console.log('🔄 Auto-refresh ativo: atualiza a cada 5 segundos');
     </script>
 </body>
 </html>
