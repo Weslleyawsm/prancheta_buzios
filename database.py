@@ -70,7 +70,7 @@ class DatabaseManager:
             return {'status': 'erro', 'mensagem': f'Erro: {str(e)}'}
 
     def calcular_proximo_horario_linha(self, nome_linha):
-        """Calcula próximo horário baseado no ÚLTIMO carro DA LINHA ESPECÍFICA"""
+        """Calcula próximo horário baseado no ÚLTIMO carro DA LINHA ESPECÍFICA com lógica inteligente"""
         try:
             conexao = self.connect()
             cursor = conexao.cursor()
@@ -78,28 +78,22 @@ class DatabaseManager:
             print(f"🔍 Calculando próximo horário para linha: {nome_linha}")
             print(f"🔍 Fiscal: {self.fiscal_atual}, Data: {self.data_atual}")
 
-            # 🎯 BUSCAR ÚLTIMO CARRO DA LINHA ESPECÍFICA
-            sql = """SELECT horario_saida FROM saida_carros 
-                     WHERE nome_fiscal = %s AND data_trabalho = %s AND linha = %s
-                     ORDER BY horario_saida DESC 
-                     LIMIT 1"""
+            # 🎯 PASSO 1: Verificar se há carros AGUARDANDO na linha
+            sql_aguardando = """SELECT horario_saida FROM saida_carros 
+                               WHERE nome_fiscal = %s AND data_trabalho = %s AND linha = %s
+                               AND saida_confirmada = FALSE
+                               ORDER BY horario_saida DESC 
+                               LIMIT 1"""
 
             valores = (self.fiscal_atual, self.data_atual, nome_linha)
-            cursor.execute(sql, valores)
-            ultimo_carro_linha = cursor.fetchone()
+            cursor.execute(sql_aguardando, valores)
+            ultimo_aguardando = cursor.fetchone()
 
-            print(f"🔍 Último carro da linha {nome_linha}: {ultimo_carro_linha}")
+            print(f"🔍 Último carro AGUARDANDO da linha {nome_linha}: {ultimo_aguardando}")
 
-            cursor.close()
-            conexao.close()
-
-            # Obter intervalo específico da linha
-            intervalo_linha = self.obter_intervalo_linha(nome_linha)
-            print(f"🔍 Intervalo da linha {nome_linha}: {intervalo_linha} minutos")
-
-            if ultimo_carro_linha and ultimo_carro_linha[0]:
-                # Há carros da linha - adicionar intervalo ao último
-                ultimo_horario = ultimo_carro_linha[0]
+            # Se há carro aguardando, usar ele + intervalo
+            if ultimo_aguardando and ultimo_aguardando[0]:
+                ultimo_horario = ultimo_aguardando[0]
 
                 # Converter timedelta para time se necessário
                 if isinstance(ultimo_horario, timedelta):
@@ -111,16 +105,74 @@ class DatabaseManager:
 
                 if isinstance(ultimo_horario, time):
                     ultimo_datetime = datetime.combine(datetime.now().date(), ultimo_horario)
+                    intervalo_linha = self.obter_intervalo_linha(nome_linha)
                     proximo_datetime = ultimo_datetime + timedelta(minutes=intervalo_linha)
                     proximo_horario = proximo_datetime.time().replace(second=0, microsecond=0)
-                    print(f"⏰ {nome_linha}: Último ({ultimo_horario}) + {intervalo_linha}min = {proximo_horario}")
+                    print(
+                        f"⏰ {nome_linha}: Último aguardando ({ultimo_horario}) + {intervalo_linha}min = {proximo_horario}")
+                    cursor.close()
+                    conexao.close()
                     return proximo_horario
 
-            # Primeiro carro da linha - usar horário atual + 10 minutos
+            # 🎯 PASSO 2: Se NÃO há carros aguardando, verificar último CONFIRMADO
+            sql_confirmado = """SELECT horario_saida FROM saida_carros 
+                               WHERE nome_fiscal = %s AND data_trabalho = %s AND linha = %s
+                               AND saida_confirmada = TRUE
+                               ORDER BY horario_saida DESC 
+                               LIMIT 1"""
+
+            cursor.execute(sql_confirmado, valores)
+            ultimo_confirmado = cursor.fetchone()
+
+            print(f"🔍 Último carro CONFIRMADO da linha {nome_linha}: {ultimo_confirmado}")
+
             agora = datetime.now()
+            intervalo_linha = self.obter_intervalo_linha(nome_linha)
+            print(f"🔍 Intervalo da linha {nome_linha}: {intervalo_linha} minutos")
+            print(f"🔍 Horário atual: {agora.strftime('%H:%M:%S')}")
+
+            if ultimo_confirmado and ultimo_confirmado[0]:
+                ultimo_horario = ultimo_confirmado[0]
+
+                # Converter timedelta para time se necessário
+                if isinstance(ultimo_horario, timedelta):
+                    total_seconds = int(ultimo_horario.total_seconds())
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    ultimo_horario = time(hours, minutes, 0)
+                    print(f"🔧 Convertido timedelta para time: {ultimo_horario}")
+
+                if isinstance(ultimo_horario, time):
+                    ultimo_datetime = datetime.combine(datetime.now().date(), ultimo_horario)
+                    horario_esperado_datetime = ultimo_datetime + timedelta(minutes=intervalo_linha)
+                    horario_esperado = horario_esperado_datetime.time()
+
+                    print(f"🔍 Último confirmado: {ultimo_horario}")
+                    print(f"🔍 Horário esperado seria: {horario_esperado}")
+
+                    # 🎯 REGRA INTELIGENTE: Se passou do tempo, usar agora + intervalo
+                    if agora.time() > horario_esperado:
+                        print(f"⚡ CARRO ATRASADO! Passou do horário esperado ({horario_esperado})")
+                        print(f"⚡ Usando horário atual + {intervalo_linha} minutos")
+                        proximo_datetime = agora + timedelta(minutes=intervalo_linha)
+                        proximo_horario = proximo_datetime.time().replace(second=0, microsecond=0)
+                        print(f"⏰ Novo horário calculado: {proximo_horario}")
+                        cursor.close()
+                        conexao.close()
+                        return proximo_horario
+                    else:
+                        print(f"✅ Dentro do prazo, usando horário esperado: {horario_esperado}")
+                        cursor.close()
+                        conexao.close()
+                        return horario_esperado.replace(second=0, microsecond=0)
+
+            # 🎯 PASSO 3: Primeiro carro da linha - usar horário atual + 10 minutos
             proximo_datetime = agora + timedelta(minutes=10)
             proximo_horario = proximo_datetime.time().replace(second=0, microsecond=0)
             print(f"⏰ PRIMEIRO carro da linha {nome_linha}: {proximo_horario} (agora + 10 minutos)")
+
+            cursor.close()
+            conexao.close()
             return proximo_horario
 
         except Exception as e:
@@ -129,7 +181,7 @@ class DatabaseManager:
             return (agora + timedelta(minutes=10)).time().replace(second=0, microsecond=0)
 
     def recalcular_horarios_linha_especifica(self, nome_linha):
-        """Recalcula horários apenas dos carros pendentes DE UMA LINHA ESPECÍFICA"""
+        """Recalcula horários apenas dos carros pendentes DE UMA LINHA ESPECÍFICA usando LÓGICA INTELIGENTE"""
         try:
             if not self.fiscal_atual or not self.data_atual:
                 print("❌ Cabeçalho não definido, não é possível recalcular")
@@ -156,39 +208,62 @@ class DatabaseManager:
                 conexao.close()
                 return 0
 
-            # Buscar primeiro horário disponível da linha (baseado nos carros confirmados)
-            sql_confirmados = """SELECT horario_saida FROM saida_carros 
-                                WHERE nome_fiscal = %s AND data_trabalho = %s 
-                                AND linha = %s AND saida_confirmada = TRUE
-                                ORDER BY horario_saida DESC 
-                                LIMIT 1"""
-
-            cursor.execute(sql_confirmados, valores)
-            ultimo_confirmado = cursor.fetchone()
-
-            # Definir horário base para recálculo
+            # 🆕 LÓGICA INTELIGENTE: Usar a mesma lógica do calcular_proximo_horario_linha
+            agora = datetime.now()
             intervalo_linha = self.obter_intervalo_linha(nome_linha)
 
+            # Verificar último carro CONFIRMADO da linha
+            sql_confirmado = """SELECT horario_saida FROM saida_carros 
+                               WHERE nome_fiscal = %s AND data_trabalho = %s AND linha = %s
+                               AND saida_confirmada = TRUE
+                               ORDER BY horario_saida DESC 
+                               LIMIT 1"""
+
+            cursor.execute(sql_confirmado, valores)
+            ultimo_confirmado = cursor.fetchone()
+
+            print(f"🔍 Último carro CONFIRMADO da linha {nome_linha}: {ultimo_confirmado}")
+            print(f"🔍 Horário atual: {agora.strftime('%H:%M:%S')}")
+            print(f"🔍 Intervalo da linha {nome_linha}: {intervalo_linha} minutos")
+
+            # Determinar horário base INTELIGENTE
             if ultimo_confirmado and ultimo_confirmado[0]:
-                # Baseado no último confirmado
                 ultimo_horario = ultimo_confirmado[0]
+
+                # Converter timedelta para time se necessário
                 if isinstance(ultimo_horario, timedelta):
                     total_seconds = int(ultimo_horario.total_seconds())
                     hours = total_seconds // 3600
                     minutes = (total_seconds % 3600) // 60
                     ultimo_horario = time(hours, minutes, 0)
 
-                horario_base_datetime = datetime.combine(datetime.now().date(), ultimo_horario)
-                horario_base_datetime += timedelta(minutes=intervalo_linha)
+                if isinstance(ultimo_horario, time):
+                    ultimo_datetime = datetime.combine(datetime.now().date(), ultimo_horario)
+                    horario_esperado_datetime = ultimo_datetime + timedelta(minutes=intervalo_linha)
+                    horario_esperado = horario_esperado_datetime.time()
+
+                    print(f"🔍 Último confirmado: {ultimo_horario}")
+                    print(f"🔍 Horário esperado seria: {horario_esperado}")
+
+                    # 🎯 REGRA INTELIGENTE: Se passou do tempo, usar agora + intervalo
+                    if agora.time() > horario_esperado:
+                        print(f"⚡ CARRO ATRASADO! Passou do horário esperado ({horario_esperado})")
+                        print(f"⚡ Usando horário atual + {intervalo_linha} minutos para BASE")
+                        horario_base_datetime = agora + timedelta(minutes=intervalo_linha)
+                    else:
+                        print(f"✅ Dentro do prazo, usando horário esperado como BASE: {horario_esperado}")
+                        horario_base_datetime = horario_esperado_datetime
             else:
                 # Primeiro da linha - usar horário atual + 10 minutos
-                horario_base_datetime = datetime.now() + timedelta(minutes=10)
+                print(f"⏰ PRIMEIRO carro da linha {nome_linha} - usando agora + 10 min como BASE")
+                horario_base_datetime = agora + timedelta(minutes=10)
 
             horario_base_datetime = horario_base_datetime.replace(second=0, microsecond=0)
-            print(f"⏰ Base para recálculo da linha {nome_linha}: {horario_base_datetime.strftime('%H:%M:%S')}")
+            print(f"⏰ BASE FINAL para recálculo da linha {nome_linha}: {horario_base_datetime.strftime('%H:%M:%S')}")
 
             carros_atualizados = 0
 
+            # Recalcular carros pendentes baseado na BASE INTELIGENTE
             for i, (id_carro, numero_carro, horario_antigo) in enumerate(carros_pendentes):
                 # Calcular novo horário
                 novo_horario_datetime = horario_base_datetime + timedelta(minutes=i * intervalo_linha)
@@ -211,7 +286,7 @@ class DatabaseManager:
 
             # Commit das alterações
             conexao.commit()
-            print(f"💾 Linha {nome_linha}: {carros_atualizados} carros atualizados")
+            print(f"💾 Linha {nome_linha}: {carros_atualizados} carros atualizados com LÓGICA INTELIGENTE")
 
             cursor.close()
             conexao.close()
@@ -546,7 +621,7 @@ class DatabaseManager:
 
     def recalcular_horarios_carros_pendentes(self):
         """
-        FUNÇÃO ORIGINAL: Recalcula horários SEM DUPLICAR registros
+        FUNÇÃO ORIGINAL CORRIGIDA: Recalcula horários SEM DUPLICAR registros usando LÓGICA INTELIGENTE
         """
         try:
             if not self.fiscal_atual or not self.data_atual:
@@ -555,19 +630,6 @@ class DatabaseManager:
 
             conexao = self.connect()
             cursor = conexao.cursor()
-
-            # DEBUG: Ver todos os carros ANTES
-            sql_debug_antes = """SELECT id, numero_carro, horario_saida, saida_confirmada FROM saida_carros 
-                                WHERE nome_fiscal = %s AND data_trabalho = %s 
-                                ORDER BY id ASC"""
-
-            cursor.execute(sql_debug_antes, (self.fiscal_atual, self.data_atual))
-            todos_antes = cursor.fetchall()
-
-            print(f"🔍 ANTES - Total de registros: {len(todos_antes)}")
-            for carro in todos_antes:
-                status = "CONFIRMADO" if carro[3] else "PENDENTE"
-                print(f"    ID:{carro[0]} - Carro {carro[1]} - {carro[2]} - {status}")
 
             # Buscar apenas carros PENDENTES para recalcular
             sql_pendentes = """SELECT id, numero_carro, horario_saida FROM saida_carros 
@@ -578,9 +640,7 @@ class DatabaseManager:
             cursor.execute(sql_pendentes, (self.fiscal_atual, self.data_atual))
             carros_pendentes = cursor.fetchall()
 
-            print(f"🔍 Carros PENDENTES para recalcular: {len(carros_pendentes)}")
-            for carro in carros_pendentes:
-                print(f"    ID:{carro[0]} - Carro {carro[1]} - {carro[2]}")
+            print(f"🔍 Carros PENDENTES para recalcular (TODAS AS LINHAS): {len(carros_pendentes)}")
 
             if not carros_pendentes:
                 print("✅ Nenhum carro pendente para recalcular")
@@ -588,18 +648,18 @@ class DatabaseManager:
                 conexao.close()
                 return 0
 
-            # Base para recálculo: hora atual + 10 minutos
+            # 🆕 LÓGICA INTELIGENTE: Usar horário atual como base (não carros antigos)
             agora = datetime.now()
-            horario_base = agora + timedelta(minutes=10)
+            horario_base = agora + timedelta(minutes=10)  # Base: agora + 10 minutos
             horario_base = horario_base.replace(second=0, microsecond=0)
 
-            print(f"⏰ BASE para recálculo: {horario_base.strftime('%H:%M:%S')}")
-            print(f"⏰ INTERVALO: {self.intervalo_atual} minutos")
+            print(f"⏰ BASE INTELIGENTE para recálculo: {horario_base.strftime('%H:%M:%S')} (agora + 10 min)")
+            print(f"⏰ INTERVALO GERAL: {self.intervalo_atual} minutos")
 
             carros_atualizados = 0
 
             for i, (id_carro, numero_carro, horario_antigo) in enumerate(carros_pendentes):
-                # Calcular novo horário
+                # Calcular novo horário baseado na BASE INTELIGENTE
                 novo_horario_datetime = horario_base + timedelta(minutes=i * self.intervalo_atual)
                 novo_horario_datetime = novo_horario_datetime.replace(second=0, microsecond=0)
                 novo_horario_time = novo_horario_datetime.time()
@@ -622,7 +682,7 @@ class DatabaseManager:
 
             # COMMIT apenas uma vez no final
             conexao.commit()
-            print(f"💾 Transação commitada - {carros_atualizados} carros atualizados")
+            print(f"💾 Transação commitada - {carros_atualizados} carros atualizados com LÓGICA INTELIGENTE")
 
             cursor.close()
             conexao.close()
