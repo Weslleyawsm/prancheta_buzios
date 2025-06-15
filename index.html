@@ -1,0 +1,1700 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚌 Sistema de Controle de Saída - Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 10px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .cabecalho-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border-left: 5px solid #007bff;
+        }
+
+        .cabecalho-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            display: flex;
+            gap: 15px;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+
+        .form-field {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .form-field label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .form-field input, .form-field select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-field input:focus, .form-field select:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #1e7e34; }
+
+        .btn-danger { background: #dc3545; }
+        .btn-danger:hover { background: #c82333; }
+
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-warning:hover { background: #e0a800; }
+
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #545b62; }
+
+        .btn-info { background: #17a2b8; }
+        .btn-info:hover { background: #138496; }
+
+        .adicionar-section {
+            background: #e8f5e8;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border-left: 5px solid #28a745;
+        }
+
+        .controles-linha-section {
+            background: #fff3cd;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border-left: 5px solid #ffc107;
+        }
+
+        .linha-controles {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .linha-control-item {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s;
+        }
+
+        .linha-control-item:hover {
+            border-color: #ffc107;
+            box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2);
+        }
+
+        .linha-control-item h4 {
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .linha-control-item .intervalo-info {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #ffc107;
+            margin-bottom: 15px;
+        }
+
+        .linha-control-item .form-group {
+            margin-bottom: 15px;
+        }
+
+        .linha-control-item input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        /* Cronômetro Styles */
+        .cronometro-container {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .cronometro-display {
+            font-size: 2.5em;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            background: #fff;
+        }
+
+        .cronometro-ativo {
+            color: #28a745;
+            background: #d4edda !important;
+            border-color: #28a745 !important;
+            animation: pulse 2s infinite;
+        }
+
+        .cronometro-pausado {
+            color: #ffc107;
+            background: #fff3cd !important;
+            border-color: #ffc107 !important;
+        }
+
+        .cronometro-zerado {
+            color: #dc3545;
+            background: #f8d7da !important;
+            border-color: #dc3545 !important;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .cronometro-info {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .cronometro-controles {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 0.8em;
+            border-radius: 4px;
+        }
+
+        .proximo-carro {
+            background: #e7f3ff;
+            border: 1px solid #bee5eb;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .carros-section {
+            margin-bottom: 30px;
+        }
+
+        .carros-por-linha {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .linha-container {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 2px solid #e9ecef;
+        }
+
+        .linha-header {
+            padding: 20px;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            position: relative;
+        }
+
+        .linha-vila-verde .linha-header {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+
+        .linha-rasa .linha-header {
+            background: linear-gradient(135deg, #007bff, #6610f2);
+        }
+
+        .linha-header h3 {
+            margin: 0;
+            font-size: 1.3em;
+        }
+
+        .linha-header .info {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .carros-lista {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .carro-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.3s;
+        }
+
+        .carro-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .carro-item:last-child {
+            border-bottom: none;
+        }
+
+        .carro-info {
+            flex: 1;
+        }
+
+        .carro-numero {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #333;
+        }
+
+        .carro-motorista {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .carro-horario {
+            font-weight: bold;
+            color: #007bff;
+            font-size: 1em;
+        }
+
+        .carro-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-aguardando {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-saiu {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .carro-acoes {
+            display: flex;
+            gap: 8px;
+            margin-left: 15px;
+        }
+
+        .controles-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .controles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .estatisticas-section {
+            background: #e7f3ff;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border-left: 5px solid #007bff;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+                margin: 10px;
+            }
+
+            .form-group {
+                flex-direction: column;
+            }
+
+            .carros-por-linha {
+                grid-template-columns: 1fr;
+            }
+
+            .controles-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .linha-controles {
+                grid-template-columns: 1fr;
+            }
+
+            .cronometro-display {
+                font-size: 2em;
+            }
+
+            .cronometro-controles {
+                flex-direction: column;
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            border-left: 5px solid;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left-color: #28a745;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left-color: #dc3545;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left-color: #17a2b8;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Auto-refresh indicator styles */
+        #auto-refresh-indicator {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 123, 255, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1000;
+            cursor: pointer;
+            transition: all 0.3s;
+            user-select: none;
+        }
+
+        #auto-refresh-indicator:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚌 Sistema de Controle de Saída</h1>
+            <p>Painel Administrativo - Gestão por Linha com Cronômetros</p>
+        </div>
+
+        <div id="alertas"></div>
+
+        <div class="cabecalho-section">
+            <h2>📋 Iniciar Sessão</h2>
+            <div class="form-group">
+                <div class="form-field">
+                    <label for="fiscal">👮 Nome do Fiscal</label>
+                    <input type="text" id="fiscal" placeholder="Digite o nome do fiscal" autocomplete="off">
+                </div>
+                <div class="form-field">
+                    <label for="data">📅 Data de Trabalho</label>
+                    <input type="date" id="data">
+                </div>
+                <button class="btn btn-primary" onclick="definirCabecalho()">
+                    Iniciar Sessão
+                </button>
+            </div>
+        </div>
+
+        <div class="adicionar-section hidden" id="secao-adicionar">
+            <h2>🚗 Adicionar Carro</h2>
+            <div class="form-group">
+                <div class="form-field">
+                    <label for="numero">🔢 Número do Carro</label>
+                    <input type="text" id="numero" placeholder="Ex: 1234" autocomplete="off">
+                </div>
+                <div class="form-field">
+                    <label for="motorista">👤 Nome do Motorista</label>
+                    <input type="text" id="motorista" placeholder="Nome completo" autocomplete="off">
+                </div>
+                <div class="form-field">
+                    <label for="linha">🛣️ Linha</label>
+                    <select id="linha">
+                        <option value="">Selecione a linha</option>
+                        <option value="Centro x Vila Verde">Centro x Vila Verde</option>
+                        <option value="Centro x Rasa">Centro x Rasa</option>
+                    </select>
+                </div>
+                <button class="btn btn-success" onclick="adicionarCarro()">
+                    ➕ Adicionar Carro
+                </button>
+            </div>
+        </div>
+
+        <div class="controles-linha-section hidden" id="secao-controles-linha">
+            <h2>⚙️ Controles por Linha</h2>
+            <div class="linha-controles">
+                <div class="linha-control-item">
+                    <h4>🟢 Centro x Vila Verde</h4>
+                    <div class="intervalo-info" id="intervalo-vila-verde">Intervalo: 8 minutos</div>
+                    <div class="form-group">
+                        <input type="number" id="novo-intervalo-vila-verde" placeholder="Novo intervalo (min)" min="1" max="60" value="8">
+                        <button class="btn btn-warning btn-small" onclick="definirIntervaloLinha('Centro x Vila Verde')">
+                            Alterar Intervalo
+                        </button>
+                    </div>
+
+                    <!-- Cronômetro Vila Verde -->
+                    <div class="cronometro-container">
+                        <div class="cronometro-info">⏰ Cronômetro Automático</div>
+                        <div class="cronometro-display" id="cronometro-vila-verde">00:00</div>
+                        <div class="proximo-carro" id="proximo-vila-verde">Aguardando próximo carro...</div>
+                    </div>
+                </div>
+
+                <div class="linha-control-item">
+                    <h4>🔵 Centro x Rasa</h4>
+                    <div class="intervalo-info" id="intervalo-rasa">Intervalo: 8 minutos</div>
+                    <div class="form-group">
+                        <input type="number" id="novo-intervalo-rasa" placeholder="Novo intervalo (min)" min="1" max="60" value="8">
+                        <button class="btn btn-warning btn-small" onclick="definirIntervaloLinha('Centro x Rasa')">
+                            Alterar Intervalo
+                        </button>
+                    </div>
+
+                    <!-- Cronômetro Rasa -->
+                    <div class="cronometro-container">
+                        <div class="cronometro-info">⏰ Cronômetro Automático</div>
+                        <div class="cronometro-display" id="cronometro-rasa">00:00</div>
+                        <div class="proximo-carro" id="proximo-rasa">Aguardando próximo carro...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="carros-section hidden" id="secao-carros">
+            <h2>🚌 Carros do Dia - Por Linha</h2>
+
+            <div class="carros-por-linha">
+                <div class="linha-container linha-vila-verde">
+                    <div class="linha-header">
+                        <h3>🟢 Centro x Vila Verde</h3>
+                        <div class="info">
+                            <span id="total-vila-verde">0 carros</span> •
+                            <span id="intervalo-info-vila-verde">8 min</span>
+                        </div>
+                    </div>
+                    <div class="carros-lista" id="carros-vila-verde">
+                        <div class="carro-item" style="text-align: center; color: #666; padding: 40px;">
+                            Nenhum carro cadastrado ainda
+                        </div>
+                    </div>
+                </div>
+
+                <div class="linha-container linha-rasa">
+                    <div class="linha-header">
+                        <h3>🔵 Centro x Rasa</h3>
+                        <div class="info">
+                            <span id="total-rasa">0 carros</span> •
+                            <span id="intervalo-info-rasa">8 min</span>
+                        </div>
+                    </div>
+                    <div class="carros-lista" id="carros-rasa">
+                        <div class="carro-item" style="text-align: center; color: #666; padding: 40px;">
+                            Nenhum carro cadastrado ainda
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controles-section hidden" id="secao-controles">
+            <h2>🎛️ Controles Gerais</h2>
+            <div class="controles-grid">
+                <button class="btn btn-info" onclick="atualizarCarros()">
+                    🔄 Atualizar Lista
+                </button>
+                <button class="btn btn-warning" onclick="abrirModalIntervaloGeral()">
+                    ⏱️ Intervalo Geral
+                </button>
+                <button class="btn btn-secondary" onclick="verTodosRegistros()">
+                    📊 Todos os Registros
+                </button>
+                <button class="btn btn-danger" onclick="finalizarDia()">
+                    🏁 Finalizar Dia
+                </button>
+            </div>
+        </div>
+
+        <div class="estatisticas-section hidden" id="secao-estatisticas">
+            <h2>📊 Estatísticas da Sessão</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number" id="total-carros-geral">0</div>
+                    <div class="stat-label">Total de Carros</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="carros-confirmados">0</div>
+                    <div class="stat-label">Carros que Saíram</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="carros-aguardando">0</div>
+                    <div class="stat-label">Aguardando Saída</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="linhas-ativas">0</div>
+                    <div class="stat-label">Linhas Ativas</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessaoAtiva = false;
+        let intervalosLinha = {
+            'Centro x Vila Verde': 8,
+            'Centro x Rasa': 8
+        };
+
+        // Sistema de Cronômetros Automático
+        let cronometros = {
+            'Centro x Vila Verde': {
+                tempoRestante: 0,
+                ativo: false,
+                intervalo: null,
+                proximoCarro: null,
+                horarioProximoCarroOriginal: null,
+                horarioProximoCarro: null
+            },
+            'Centro x Rasa': {
+                tempoRestante: 0,
+                ativo: false,
+                intervalo: null,
+                proximoCarro: null,
+                horarioProximoCarroOriginal: null,
+                horarioProximoCarro: null
+            }
+        };
+
+        // ===== SISTEMA DE AUTO-REFRESH =====
+        let autoRefreshAtivo = true;
+        let intervaloAutoRefresh = null;
+
+        function iniciarAutoRefresh() {
+            if (intervaloAutoRefresh) {
+                clearInterval(intervaloAutoRefresh);
+            }
+
+            // Auto-refresh a cada 5 segundos (igual ao motorista.html)
+            intervaloAutoRefresh = setInterval(async () => {
+                if (!document.hidden && sessaoAtiva && autoRefreshAtivo) { // Só atualiza se aba estiver ativa e sessão ativa
+                    try {
+                        console.log('🔄 Auto-refresh do painel administrativo...');
+
+                        // Atualizar dados principais
+                        await atualizarCarros();
+
+                        // Recarregar intervalos das linhas (sem reinicializar cronômetros)
+                        await carregarIntervalosLinhas();
+
+                        // Log silencioso (sem mostrar alerta)
+                        log('Auto-refresh executado com sucesso');
+
+                    } catch (error) {
+                        console.error('Erro no auto-refresh:', error);
+                        log(`Erro no auto-refresh: ${error.message}`);
+                    }
+                }
+            }, 5000); // 5 segundos
+
+            log('🔄 Auto-refresh iniciado (5 segundos)');
+        }
+
+        function pararAutoRefresh() {
+            if (intervaloAutoRefresh) {
+                clearInterval(intervaloAutoRefresh);
+                intervaloAutoRefresh = null;
+                log('⏸️ Auto-refresh pausado');
+            }
+        }
+
+        function toggleAutoRefresh() {
+            autoRefreshAtivo = !autoRefreshAtivo;
+            if (autoRefreshAtivo) {
+                mostrarAlerta('🔄 Auto-refresh ativado!', 'success');
+                log('Auto-refresh reativado pelo usuário');
+            } else {
+                mostrarAlerta('⏸️ Auto-refresh pausado!', 'info');
+                log('Auto-refresh pausado pelo usuário');
+            }
+            atualizarIndicadorAutoRefresh();
+        }
+
+        function criarIndicadorAutoRefresh() {
+            const indicador = document.createElement('div');
+            indicador.id = 'auto-refresh-indicator';
+            indicador.innerHTML = '🔄 Auto-refresh: <span id="status-refresh">ATIVO</span>';
+
+            indicador.addEventListener('click', toggleAutoRefresh);
+            document.body.appendChild(indicador);
+
+            // Atualizar indicador baseado no status
+            atualizarIndicadorAutoRefresh();
+        }
+
+        function atualizarIndicadorAutoRefresh() {
+            const indicador = document.getElementById('auto-refresh-indicator');
+            const statusSpan = document.getElementById('status-refresh');
+
+            if (indicador && statusSpan) {
+                if (!sessaoAtiva) {
+                    statusSpan.textContent = 'AGUARDANDO';
+                    indicador.style.background = 'rgba(108, 117, 125, 0.9)';
+                } else if (autoRefreshAtivo) {
+                    statusSpan.textContent = 'ATIVO';
+                    indicador.style.background = 'rgba(40, 167, 69, 0.9)';
+                } else {
+                    statusSpan.textContent = 'PAUSADO';
+                    indicador.style.background = 'rgba(255, 193, 7, 0.9)';
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const hoje = new Date().toISOString().split('T')[0];
+            document.getElementById('data').value = hoje;
+            verificarSessaoAtiva();
+            carregarIntervalosLinhas();
+            inicializarCronometros();
+
+            // Criar indicador de auto-refresh
+            setTimeout(() => {
+                criarIndicadorAutoRefresh();
+                setInterval(atualizarIndicadorAutoRefresh, 1000);
+            }, 1000);
+        });
+
+        // ===== FUNÇÕES DE CRONÔMETRO AUTOMÁTICO =====
+        function inicializarCronometros() {
+            Object.keys(cronometros).forEach(linha => {
+                cronometros[linha].tempoRestante = 0;
+                atualizarDisplayCronometro(linha);
+            });
+        }
+
+        function formatarTempo(segundos) {
+            const minutos = Math.floor(segundos / 60);
+            const segs = segundos % 60;
+            return `${minutos.toString().padStart(2, '0')}:${segs.toString().padStart(2, '0')}`;
+        }
+
+        function calcularTempoRestante(horarioSaida) {
+            const agora = new Date();
+            const [horas, minutos] = horarioSaida.split(':').map(Number);
+
+            const horarioSaidaDate = new Date();
+            horarioSaidaDate.setHours(horas, minutos, 0, 0);
+
+            // Se o horário já passou hoje, considera como amanhã
+            if (horarioSaidaDate <= agora) {
+                horarioSaidaDate.setDate(horarioSaidaDate.getDate() + 1);
+            }
+
+            const diferenca = Math.floor((horarioSaidaDate - agora) / 1000);
+            return Math.max(0, diferenca);
+        }
+
+        function atualizarDisplayCronometro(linha) {
+            const cronometro = cronometros[linha];
+            const displayId = linha === 'Centro x Vila Verde' ? 'cronometro-vila-verde' : 'cronometro-rasa';
+            const proximoId = linha === 'Centro x Vila Verde' ? 'proximo-vila-verde' : 'proximo-rasa';
+            const display = document.getElementById(displayId);
+            const proximoDiv = document.getElementById(proximoId);
+
+            display.textContent = formatarTempo(cronometro.tempoRestante);
+
+            // Remover todas as classes de estado
+            display.classList.remove('cronometro-ativo', 'cronometro-pausado', 'cronometro-zerado');
+
+            if (cronometro.ativo && cronometro.tempoRestante > 0) {
+                display.classList.add('cronometro-ativo');
+            } else if (cronometro.tempoRestante === 0 && cronometro.proximoCarro) {
+                display.classList.add('cronometro-zerado');
+            } else {
+                display.classList.add('cronometro-pausado');
+            }
+
+            // Atualizar informação do próximo carro
+            if (cronometro.proximoCarro && cronometro.horarioProximoCarro) {
+                if (cronometro.horarioProximoCarro === 'Contagem regressiva') {
+                    proximoDiv.textContent = `Intervalo em andamento - ${cronometro.proximoCarro}`;
+                } else {
+                    proximoDiv.textContent = `Próximo: Carro ${cronometro.proximoCarro} - Saída ${cronometro.horarioProximoCarro}`;
+                }
+            } else {
+                proximoDiv.textContent = 'Aguardando próximo carro...';
+            }
+        }
+
+        function iniciarCronometroAutomatico(linha, numeroCarro, horarioSaida) {
+            const cronometro = cronometros[linha];
+
+            // Parar cronômetro anterior se estiver rodando
+            if (cronometro.intervalo) {
+                clearInterval(cronometro.intervalo);
+            }
+
+            cronometro.proximoCarro = numeroCarro;
+            cronometro.horarioProximoCarro = horarioSaida;
+            cronometro.horarioProximoCarroOriginal = horarioSaida;
+            cronometro.tempoRestante = calcularTempoRestante(horarioSaida);
+            cronometro.ativo = true;
+
+            cronometro.intervalo = setInterval(() => {
+                cronometro.tempoRestante = calcularTempoRestante(cronometro.horarioProximoCarroOriginal);
+
+                if (cronometro.tempoRestante <= 0) {
+                    // Horário chegou, marcar carro como saído automaticamente
+                    marcarCarroComoSaidoAutomaticamente(linha, numeroCarro);
+                }
+
+                atualizarDisplayCronometro(linha);
+            }, 1000);
+
+            atualizarDisplayCronometro(linha);
+            log(`Cronômetro automático iniciado para ${linha} - Carro ${numeroCarro} às ${horarioSaida}`);
+        }
+
+        function marcarCarroComoSaidoAutomaticamente(linha, numeroCarro) {
+            log(`🚌 Tentando marcar carro ${numeroCarro} da linha ${linha} como saído automaticamente`);
+
+            // Encontrar o ID do carro na lista para confirmar saída
+            fetch('/listar-por-linha')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok' && data.carros_por_linha[linha]) {
+                    const carrosLinha = data.carros_por_linha[linha].carros;
+                    const carro = carrosLinha.find(c => c.numero === numeroCarro && c.status === 'AGUARDANDO');
+
+                    if (carro) {
+                        log(`✅ Carro ${numeroCarro} encontrado, confirmando saída automaticamente...`);
+
+                        // Confirmar saída automaticamente
+                        const dados = `id=${carro.id}`;
+
+                        fetch('/confirmar-saida', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: dados
+                        })
+                        .then(response => response.json())
+                        .then(result => {
+                            if (result.status === 'ok') {
+                                mostrarAlerta(`🚌 Carro ${numeroCarro} saiu automaticamente às ${new Date().toLocaleTimeString()}!`, 'success');
+                                log(`✅ Carro ${numeroCarro} marcado como saído com sucesso`);
+
+                                // FORÇAR atualização imediata da lista
+                                setTimeout(() => {
+                                    atualizarCarros().then(() => {
+                                        log(`🔄 Lista atualizada após saída automática do carro ${numeroCarro}`);
+
+                                        // Verificar se há próximo carro aguardando
+                                        const proximoCarro = carrosLinha.find(c =>
+                                            c.numero !== numeroCarro &&
+                                            c.status === 'AGUARDANDO'
+                                        );
+
+                                        if (proximoCarro) {
+                                            log(`🔍 Próximo carro encontrado: ${proximoCarro.numero} - ${proximoCarro.horario}`);
+                                            // O atualizarCarros() já vai pegar o próximo carro automaticamente
+                                        } else {
+                                            log(`⏰ Nenhum próximo carro na linha ${linha}, iniciando contagem regressiva`);
+                                            // Iniciar contagem regressiva baseada no intervalo
+                                            const intervaloMinutos = intervalosLinha[linha] || 8;
+                                            iniciarContagemRegressiva(linha, intervaloMinutos);
+                                        }
+                                    });
+                                }, 1000); // Aguardar 1 segundo para dar tempo de processar no backend
+
+                            } else {
+                                log(`❌ Erro ao confirmar saída automática: ${result.mensagem}`);
+                                // Em caso de erro, ainda assim continuar com próximo carro
+                                setTimeout(() => {
+                                    atualizarCarros();
+                                }, 1000);
+                            }
+                        })
+                        .catch(error => {
+                            log(`❌ Erro na confirmação automática: ${error}`);
+                            // Em caso de erro, ainda assim continuar
+                            setTimeout(() => {
+                                atualizarCarros();
+                            }, 1000);
+                        });
+                    } else {
+                        log(`⚠️ Carro ${numeroCarro} não encontrado ou já saiu`);
+                        // Se não encontrou o carro, atualizar lista para pegar estado atual
+                        setTimeout(() => {
+                            atualizarCarros();
+                        }, 1000);
+                    }
+                } else {
+                    log(`❌ Erro ao buscar dados da linha ${linha}`);
+                    // Em caso de erro, atualizar lista
+                    setTimeout(() => {
+                        atualizarCarros();
+                    }, 1000);
+                }
+            })
+            .catch(error => {
+                log(`❌ Erro ao buscar dados do carro: ${error}`);
+                // Em caso de erro, atualizar lista
+                setTimeout(() => {
+                    atualizarCarros();
+                }, 1000);
+            });
+        }
+
+        function iniciarContagemRegressiva(linha, intervaloMinutos) {
+            const cronometro = cronometros[linha];
+
+            if (cronometro.intervalo) {
+                clearInterval(cronometro.intervalo);
+            }
+
+            cronometro.tempoRestante = intervaloMinutos * 60;
+            cronometro.ativo = true;
+
+            cronometro.intervalo = setInterval(() => {
+                if (cronometro.tempoRestante > 0) {
+                    cronometro.tempoRestante--;
+                } else {
+                    // Tempo esgotado, buscar próximo carro
+                    pararCronometro(linha);
+                    log(`⏰ Intervalo esgotado para linha ${linha}! Buscando próximo carro...`);
+
+                    // Atualizar para pegar próximo carro
+                    setTimeout(() => {
+                        atualizarCarros().then(() => {
+                            log(`🔄 Lista atualizada após fim do intervalo da linha ${linha}`);
+                        });
+                    }, 1000);
+                }
+                atualizarDisplayCronometro(linha);
+            }, 1000);
+
+            log(`⏰ Contagem regressiva iniciada para ${linha} - ${intervaloMinutos} minutos`);
+
+            // Atualizar informação do próximo carro durante contagem regressiva
+            cronometro.proximoCarro = `Intervalo ${intervaloMinutos}min`;
+            cronometro.horarioProximoCarro = 'Contagem regressiva';
+            atualizarDisplayCronometro(linha);
+        }
+
+        function pararCronometro(linha) {
+            const cronometro = cronometros[linha];
+
+            cronometro.ativo = false;
+            cronometro.tempoRestante = 0;
+            if (cronometro.intervalo) {
+                clearInterval(cronometro.intervalo);
+                cronometro.intervalo = null;
+            }
+
+            atualizarDisplayCronometro(linha);
+        }
+
+        function reiniciarCronometroAutomatico(linha) {
+            // Para quando um carro sai e precisa resetar para o próximo
+            pararCronometro(linha);
+
+            // Buscar próximo carro aguardando da linha
+            setTimeout(() => {
+                atualizarCarros();
+            }, 500);
+        }
+
+        // ===== FUNÇÕES ORIGINAIS =====
+        function definirCabecalho() {
+            const fiscal = document.getElementById('fiscal').value.trim();
+            const data = document.getElementById('data').value;
+
+            if (!fiscal || !data) {
+                mostrarAlerta('Por favor, preencha o nome do fiscal e a data.', 'error');
+                return;
+            }
+
+            const dados = `fiscal=${encodeURIComponent(fiscal)}&data=${encodeURIComponent(data)}`;
+
+            fetch('/cabecalho', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: dados
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    mostrarAlerta(`Sessão iniciada! Fiscal: ${fiscal}`, 'success');
+                    sessaoAtiva = true;
+                    mostrarSecoesAtivas();
+                    atualizarCarros();
+                } else {
+                    mostrarAlerta(data.mensagem || 'Erro ao definir cabeçalho', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro de conexão com o servidor', 'error');
+            });
+        }
+
+        function verificarSessaoAtiva() {
+            fetch('/sessao-atual')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok' && data.sessao) {
+                    sessaoAtiva = true;
+                    document.getElementById('fiscal').value = data.sessao.fiscal;
+                    document.getElementById('data').value = data.sessao.data;
+                    mostrarSecoesAtivas();
+                    atualizarCarros();
+                    mostrarAlerta(`Sessão ativa: ${data.sessao.fiscal} - ${data.sessao.data}`, 'info');
+                }
+            })
+            .catch(error => console.error('Erro ao verificar sessão:', error));
+        }
+
+        function mostrarSecoesAtivas() {
+            document.getElementById('secao-adicionar').classList.remove('hidden');
+            document.getElementById('secao-controles-linha').classList.remove('hidden');
+            document.getElementById('secao-carros').classList.remove('hidden');
+            document.getElementById('secao-controles').classList.remove('hidden');
+            document.getElementById('secao-estatisticas').classList.remove('hidden');
+
+            // Iniciar auto-refresh quando sessão for ativada
+            iniciarAutoRefresh();
+        }
+
+        function adicionarCarro() {
+            const numero = document.getElementById('numero').value.trim();
+            const motorista = document.getElementById('motorista').value.trim();
+            const linha = document.getElementById('linha').value;
+
+            if (!numero || !motorista || !linha) {
+                mostrarAlerta('Por favor, preencha todos os campos.', 'error');
+                return;
+            }
+
+            const dados = `numero=${encodeURIComponent(numero)}&motorista=${encodeURIComponent(motorista)}&linha=${encodeURIComponent(linha)}`;
+
+            fetch('/adicionar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: dados
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    mostrarAlerta(`Carro ${numero} adicionado com sucesso! Horário: ${data.dados.horario}`, 'success');
+
+                    document.getElementById('numero').value = '';
+                    document.getElementById('motorista').value = '';
+                    document.getElementById('linha').value = '';
+                    atualizarCarros();
+                } else {
+                    mostrarAlerta(data.mensagem || 'Erro ao adicionar carro', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro de conexão com o servidor', 'error');
+            });
+        }
+
+        // Função melhorada de atualização de carros (async)
+        async function atualizarCarros() {
+            if (!sessaoAtiva) return;
+
+            try {
+                const response = await fetch('/listar-por-linha');
+                const data = await response.json();
+
+                if (data.status === 'ok') {
+                    renderizarCarrosPorLinha(data.carros_por_linha);
+                    atualizarEstatisticas(data);
+                    atualizarProximosCarros(data.carros_por_linha);
+                } else {
+                    console.error('Erro ao buscar carros:', data.mensagem);
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+            }
+        }
+
+        function atualizarProximosCarros(carrosPorLinha) {
+            Object.keys(carrosPorLinha).forEach(linha => {
+                const carrosLinha = carrosPorLinha[linha];
+                const cronometroAtual = cronometros[linha];
+
+                if (carrosLinha && carrosLinha.carros.length > 0) {
+                    // Encontrar o próximo carro que ainda não saiu
+                    const proximoCarro = carrosLinha.carros.find(carro => carro.status === 'AGUARDANDO');
+
+                    if (proximoCarro) {
+                        // Verificar se é o mesmo carro que já estava no cronômetro
+                        if (cronometroAtual.proximoCarro === proximoCarro.numero &&
+                            cronometroAtual.horarioProximoCarro === proximoCarro.horario) {
+                            // É o mesmo carro, não reiniciar cronômetro
+                            // log(`⏱️ Mantendo cronômetro para ${linha} - Carro ${proximoCarro.numero}`);
+                            return;
+                        }
+
+                        // É um carro diferente, iniciar novo cronômetro
+                        log(`🆕 Novo carro detectado para ${linha} - Carro ${proximoCarro.numero} às ${proximoCarro.horario}`);
+                        iniciarCronometroAutomatico(linha, proximoCarro.numero, proximoCarro.horario);
+                    } else {
+                        // Todos os carros saíram, parar cronômetro
+                        log(`✅ Todos os carros da linha ${linha} saíram`);
+                        pararCronometro(linha);
+                        cronometros[linha].proximoCarro = null;
+                        atualizarDisplayCronometro(linha);
+                    }
+                } else {
+                    // Nenhum carro na linha, parar cronômetro
+                    pararCronometro(linha);
+                    cronometros[linha].proximoCarro = null;
+                    atualizarDisplayCronometro(linha);
+                }
+            });
+        }
+
+        function renderizarCarrosPorLinha(carrosPorLinha) {
+            const linhas = ['Centro x Vila Verde', 'Centro x Rasa'];
+
+            linhas.forEach(linha => {
+                const carrosLinha = carrosPorLinha[linha] || { carros: [], total: 0, intervalo: 8 };
+                const containerId = linha === 'Centro x Vila Verde' ? 'carros-vila-verde' : 'carros-rasa';
+                const totalId = linha === 'Centro x Vila Verde' ? 'total-vila-verde' : 'total-rasa';
+                const intervaloInfoId = linha === 'Centro x Vila Verde' ? 'intervalo-info-vila-verde' : 'intervalo-info-rasa';
+
+                document.getElementById(totalId).textContent = `${carrosLinha.total} carros`;
+                document.getElementById(intervaloInfoId).textContent = `${carrosLinha.intervalo} min`;
+
+                const container = document.getElementById(containerId);
+
+                if (carrosLinha.carros.length === 0) {
+                    container.innerHTML = `
+                        <div class="carro-item" style="text-align: center; color: #666; padding: 40px;">
+                            Nenhum carro da linha ${linha} ainda
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = carrosLinha.carros.map(carro => `
+                        <div class="carro-item">
+                            <div class="carro-info">
+                                <div class="carro-numero">🚗 ${carro.numero}</div>
+                                <div class="carro-motorista">👤 ${carro.motorista}</div>
+                                <div class="carro-horario">🕐 ${carro.horario}</div>
+                            </div>
+                            <div class="carro-status ${carro.status === 'SAIU' ? 'status-saiu' : 'status-aguardando'}">
+                                ${carro.status}
+                            </div>
+                            <div class="carro-acoes">
+                                ${carro.status === 'AGUARDANDO' ? `
+                                    <button class="btn btn-success btn-small" onclick="confirmarSaida(${carro.id}, '${linha}')">
+                                        ✅ Confirmar
+                                    </button>
+                                ` : ''}
+                                <button class="btn btn-danger btn-small" onclick="removerCarro(${carro.id})">
+                                    🗑️ Remover
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            });
+        }
+
+        function confirmarSaida(id, linha) {
+            const dados = `id=${id}`;
+
+            fetch('/confirmar-saida', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: dados
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    mostrarAlerta('Saída confirmada manualmente!', 'success');
+
+                    // Reiniciar cronômetro automático para próximo carro da linha
+                    reiniciarCronometroAutomatico(linha);
+
+                    atualizarCarros();
+                } else {
+                    mostrarAlerta(data.mensagem || 'Erro ao confirmar saída', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro de conexão com o servidor', 'error');
+            });
+        }
+
+        function removerCarro(id) {
+            if (!confirm('Tem certeza que deseja remover este carro?')) return;
+
+            const dados = `id=${id}`;
+
+            fetch('/remover', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: dados
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    mostrarAlerta('Carro removido com sucesso!', 'success');
+                    atualizarCarros();
+                } else {
+                    mostrarAlerta(data.mensagem || 'Erro ao remover carro', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro de conexão com o servidor', 'error');
+            });
+        }
+
+        // Função melhorada de carregamento de intervalos (async)
+        async function carregarIntervalosLinhas() {
+            try {
+                const response = await fetch('/intervalos-linhas');
+                const data = await response.json();
+
+                if (data.status === 'ok') {
+                    intervalosLinha = data.intervalos;
+
+                    document.getElementById('intervalo-vila-verde').textContent = `Intervalo: ${intervalosLinha['Centro x Vila Verde']} minutos`;
+                    document.getElementById('intervalo-rasa').textContent = `Intervalo: ${intervalosLinha['Centro x Rasa']} minutos`;
+
+                    document.getElementById('novo-intervalo-vila-verde').value = intervalosLinha['Centro x Vila Verde'];
+                    document.getElementById('novo-intervalo-rasa').value = intervalosLinha['Centro x Rasa'];
+
+                    // Não reinicializar cronômetros desnecessariamente durante auto-refresh
+                    // inicializarCronometros(); // Comentado para evitar reset
+                }
+            } catch (error) {
+                console.error('Erro ao carregar intervalos:', error);
+            }
+        }
+
+        function definirIntervaloLinha(linha) {
+            const inputId = linha === 'Centro x Vila Verde' ? 'novo-intervalo-vila-verde' : 'novo-intervalo-rasa';
+            const novoIntervalo = document.getElementById(inputId).value;
+
+            if (!novoIntervalo || novoIntervalo < 1 || novoIntervalo > 60) {
+                mostrarAlerta('Intervalo deve ser entre 1 e 60 minutos', 'error');
+                return;
+            }
+
+            // Salvar estado atual do cronômetro
+            const cronometroAtual = cronometros[linha];
+            const carroAtualSalvo = cronometroAtual.proximoCarro;
+            const horarioAtualSalvo = cronometroAtual.horarioProximoCarro;
+
+            const dados = `linha=${encodeURIComponent(linha)}&intervalo=${novoIntervalo}`;
+
+            fetch('/definir-intervalo-linha', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: dados
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    mostrarAlerta(`✅ ${data.mensagem}`, 'success');
+
+                    // Atualizar intervalo local
+                    intervalosLinha[linha] = parseInt(novoIntervalo);
+
+                    // Recarregar dados sem perder o carro atual
+                    carregarIntervalosLinhas();
+
+                    // Aguardar um pouco e depois restaurar cronômetro se necessário
+                    setTimeout(() => {
+                        atualizarCarros();
+
+                        // Se havia um carro em andamento, verificar se ainda está válido
+                        if (carroAtualSalvo && horarioAtualSalvo) {
+                            setTimeout(() => {
+                                // Verificar se o carro ainda está aguardando
+                                const cronometroRestaurado = cronometros[linha];
+                                if (cronometroRestaurado.proximoCarro === carroAtualSalvo) {
+                                    log(`Cronômetro preservado para ${linha} - Carro ${carroAtualSalvo}`);
+                                } else {
+                                    log(`Estado do cronômetro alterado para ${linha} após mudança de intervalo`);
+                                }
+                            }, 1000);
+                        }
+                    }, 500);
+                } else {
+                    mostrarAlerta(data.mensagem || 'Erro ao definir intervalo', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro de conexão com o servidor', 'error');
+            });
+        }
+
+        function abrirModalIntervaloGeral() {
+            const novoIntervalo = prompt('Digite o novo intervalo GERAL (1-60 minutos):');
+
+            if (novoIntervalo === null) return;
+
+            if (!novoIntervalo || isNaN(novoIntervalo) || novoIntervalo < 1 || novoIntervalo > 60) {
+                mostrarAlerta('Intervalo deve ser um número entre 1 e 60', 'error');
+                return;
+            }
+
+            // Salvar estado atual dos cronômetros
+            const estadoCronometros = {};
+            Object.keys(cronometros).forEach(linha => {
+                estadoCronometros[linha] = {
+                    carro: cronometros[linha].proximoCarro,
+                    horario: cronometros[linha].horarioProximoCarro
+                };
+            });
+
+            const dados = `intervalo=${novoIntervalo}`;
+
+            fetch('/definir-intervalo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: dados
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    mostrarAlerta(`✅ ${data.mensagem}`, 'success');
+
+                    // Atualizar intervalos locais
+                    Object.keys(intervalosLinha).forEach(linha => {
+                        intervalosLinha[linha] = parseInt(novoIntervalo);
+                    });
+
+                    carregarIntervalosLinhas();
+
+                    // Aguardar um pouco e depois atualizar sem perder cronômetros
+                    setTimeout(() => {
+                        atualizarCarros();
+
+                        // Verificar se os cronômetros foram preservados
+                        setTimeout(() => {
+                            Object.keys(estadoCronometros).forEach(linha => {
+                                const estadoSalvo = estadoCronometros[linha];
+                                const cronometroAtual = cronometros[linha];
+
+                                if (estadoSalvo.carro && cronometroAtual.proximoCarro === estadoSalvo.carro) {
+                                    log(`Cronômetro preservado para ${linha} - Carro ${estadoSalvo.carro}`);
+                                }
+                            });
+                        }, 1000);
+                    }, 500);
+                } else {
+                    mostrarAlerta(data.mensagem || 'Erro ao definir intervalo', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro de conexão com o servidor', 'error');
+            });
+        }
+
+        function verTodosRegistros() {
+            window.open('/listar-todos', '_blank');
+        }
+
+        function finalizarDia() {
+            if (!confirm('Tem certeza que deseja finalizar o dia? Esta ação encerrará a sessão atual.')) return;
+
+            // Parar todos os cronômetros
+            Object.keys(cronometros).forEach(linha => {
+                pararCronometro(linha);
+            });
+
+            // Parar auto-refresh antes de finalizar
+            pararAutoRefresh();
+
+            fetch('/finalizar-dia', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: ''
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    mostrarAlerta(`🏁 ${data.mensagem}`, 'success');
+                    sessaoAtiva = false;
+                    document.getElementById('secao-adicionar').classList.add('hidden');
+                    document.getElementById('secao-controles-linha').classList.add('hidden');
+                    document.getElementById('secao-carros').classList.add('hidden');
+                    document.getElementById('secao-controles').classList.add('hidden');
+                    document.getElementById('secao-estatisticas').classList.add('hidden');
+                    document.getElementById('fiscal').value = '';
+                    document.getElementById('data').value = new Date().toISOString().split('T')[0];
+
+                    // Resetar cronômetros
+                    inicializarCronometros();
+
+                    // Atualizar indicador
+                    atualizarIndicadorAutoRefresh();
+                } else {
+                    mostrarAlerta(data.mensagem || 'Erro ao finalizar dia', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                mostrarAlerta('Erro de conexão com o servidor', 'error');
+            });
+        }
+
+        function atualizarEstatisticas(data) {
+            let totalCarros = 0;
+            let carrosConfirmados = 0;
+            let carrosAguardando = 0;
+            let linhasAtivas = 0;
+
+            if (data.carros_por_linha) {
+                Object.keys(data.carros_por_linha).forEach(linha => {
+                    const dadosLinha = data.carros_por_linha[linha];
+                    if (dadosLinha.total > 0) {
+                        linhasAtivas++;
+                        totalCarros += dadosLinha.total;
+
+                        dadosLinha.carros.forEach(carro => {
+                            if (carro.status === 'SAIU') {
+                                carrosConfirmados++;
+                            } else {
+                                carrosAguardando++;
+                            }
+                        });
+                    }
+                });
+            }
+
+            document.getElementById('total-carros-geral').textContent = totalCarros;
+            document.getElementById('carros-confirmados').textContent = carrosConfirmados;
+            document.getElementById('carros-aguardando').textContent = carrosAguardando;
+            document.getElementById('linhas-ativas').textContent = linhasAtivas;
+        }
+
+        function mostrarAlerta(mensagem, tipo = 'info') {
+            const alertasContainer = document.getElementById('alertas');
+            const alerta = document.createElement('div');
+
+            alerta.className = `alert alert-${tipo === 'error' ? 'error' : tipo}`;
+            alerta.textContent = mensagem;
+
+            alertasContainer.appendChild(alerta);
+
+            setTimeout(() => {
+                if (alerta.parentNode) {
+                    alerta.parentNode.removeChild(alerta);
+                }
+            }, 5000);
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ===== EVENT LISTENERS E INICIALIZAÇÕES =====
+        document.getElementById('numero').addEventListener('input', function(e) {
+            e.target.value = e.target.value.toUpperCase();
+        });
+
+        document.getElementById('motorista').addEventListener('input', function(e) {
+            const value = e.target.value;
+            const words = value.split(' ');
+            const capitalizedWords = words.map(word => {
+                if (word.length > 0) {
+                    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+                }
+                return word;
+            });
+            e.target.value = capitalizedWords.join(' ');
+        });
+
+        document.getElementById('fiscal').addEventListener('input', function(e) {
+            const value = e.target.value;
+            const words = value.split(' ');
+            const capitalizedWords = words.map(word => {
+                if (word.length > 0) {
+                    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+                }
+                return word;
+            });
+            e.target.value = capitalizedWords.join(' ');
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                if (!document.getElementById('secao-adicionar').classList.contains('hidden')) {
+                    adicionarCarro();
+                }
+            }
+
+            // Atalho para pausar/retomar auto-refresh (Ctrl + R)
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault(); // Previne refresh da página
+                toggleAutoRefresh();
+            }
+
+            // Atalhos para atualizar
+            if (e.key === 'F5') {
+                e.preventDefault();
+                atualizarCarros();
+            }
+        });
+
+        // Pausar auto-refresh quando aba não estiver visível (economizar recursos)
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                log('👁️ Aba não visível - auto-refresh pausado temporariamente');
+            } else {
+                log('👁️ Aba visível novamente - auto-refresh reativado');
+            }
+        });
+
+        window.addEventListener('load', function() {
+            document.getElementById('fiscal').focus();
+        });
+
+        function focarProximoCampo() {
+            if (sessaoAtiva) {
+                document.getElementById('numero').focus();
+            }
+        }
+
+        document.getElementById('numero').addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
+        });
+
+        document.getElementById('novo-intervalo-vila-verde').addEventListener('input', function(e) {
+            const value = parseInt(e.target.value);
+            if (value < 1) e.target.value = 1;
+            if (value > 60) e.target.value = 60;
+        });
+
+        document.getElementById('novo-intervalo-rasa').addEventListener('input', function(e) {
+            const value = parseInt(e.target.value);
+            if (value < 1) e.target.value = 1;
+            if (value > 60) e.target.value = 60;
+        });
+
+        // ===== SISTEMA DE MONITORAMENTO =====
+        let conectado = true;
+
+        function verificarConexao() {
+            fetch('/sessao-atual')
+            .then(response => {
+                if (response.ok) {
+                    if (!conectado) {
+                        conectado = true;
+                        mostrarAlerta('🟢 Conexão restaurada!', 'success');
+                    }
+                }
+            })
+            .catch(error => {
+                if (conectado) {
+                    conectado = false;
+                    mostrarAlerta('🔴 Problema de conexão com o servidor', 'error');
+                }
+            });
+        }
+
+        setInterval(verificarConexao, 60000);
+
+        function log(mensagem) {
+            const timestamp = new Date().toLocaleTimeString();
+            console.log(`[${timestamp}] ${mensagem}`);
+        }
+
+        // ===== LOGS DE INICIALIZAÇÃO =====
+        const originalDefinirCabecalho = definirCabecalho;
+        definirCabecalho = function() {
+            log('Tentando definir cabeçalho...');
+            return originalDefinirCabecalho.apply(this, arguments);
+        };
+
+        const originalAdicionarCarro = adicionarCarro;
+        adicionarCarro = function() {
+            log('Tentando adicionar carro...');
+            return originalAdicionarCarro.apply(this, arguments);
+        };
+
+        console.log('🔄 Sistema de auto-refresh carregado!');
+        console.log('💡 Dica: Ctrl + R para pausar/retomar auto-refresh');
+        console.log('💡 Clique no indicador no canto inferior direito para controlar');
+
+        log('Sistema de controle carregado com sucesso!');
+        log('Funcionalidades: Gestão por linha, intervalos independentes, cronômetros automáticos, auto-refresh');
+        log('Cronômetros iniciam automaticamente baseados nos horários de saída dos carros');
+        log('🔄 Auto-refresh ativo: atualiza a cada 5 segundos quando sessão ativa');
+    </script>
+</body>
+</html>
