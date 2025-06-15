@@ -716,6 +716,20 @@ if __name__ == '__main__':
         print("📍 PÁGINAS DISPONÍVEIS:")
         print(f"   👑 PRESIDENTE: http://localhost:{PORT}/")
         print(f"   🚗 MOTORISTA:  http://localhost:{PORT}/motorista")
+        '''print("")
+        print("✅ FUNCIONALIDADES ATIVAS:")
+        print("   📋 Cabeçalho simplificado (fiscal + data)")
+        print("   🚗 Adição de carros com horário automático POR LINHA")
+        print("   ⚙️ Controle de intervalo dinâmico POR LINHA")
+        print("   ⏰ Confirmação automática de saída")
+        print("   📊 Consultas e estatísticas por linha")
+        print("   🚐 Interface separada para motoristas")
+        print("   🆕 Gestão independente de intervalos por linha")
+        print("")
+        print("🆕 NOVOS ENDPOINTS:")
+        print("   GET  /listar-por-linha       → Carros separados por linha")
+        print("   GET  /intervalos-linhas      → Intervalos de cada linha")
+        print("   POST /definir-intervalo-linha → Define intervalo específico")'''
 
         try:
             httpd.serve_forever()
